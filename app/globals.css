@@ -314,3 +314,29 @@
 @media(max-width:760px){.lp-entry-edit-form{grid-template-columns:1fr}.lp-entry-edit-actions{grid-column:auto;flex-wrap:wrap}.lp-entry-edit-actions .lp-button{flex:1}}
 
 .lp-brand{text-decoration:none;color:inherit}
+
+/* Shared authenticated header for every module */
+.lp-app-header .lp-app-brand{display:flex;align-items:center;gap:12px;min-width:0;text-decoration:none;color:inherit}
+.lp-app-header .lp-app-brand-copy{display:block;min-width:0;margin:0}
+.lp-app-header .lp-app-brand-copy strong{display:block;font:800 15px Manrope,sans-serif;letter-spacing:-.35px;color:#25342a;line-height:1.2}
+.lp-app-header .lp-app-brand-copy span{display:block;margin-top:4px;font-size:9px;letter-spacing:1.2px;color:#8a918b;font-weight:700;line-height:1.2}
+.lp-app-header .lp-app-header-user{gap:9px;min-width:0}
+.lp-app-header .lp-app-header-name{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#626b63}
+.lp-app-header .lp-user-role{display:inline-flex;align-items:center;white-space:nowrap;border-radius:20px;background:#e8f2ec;color:#315b40;padding:5px 8px;font-size:10px;font-weight:700}
+.lp-app-header .lp-icon-button{flex:0 0 35px}
+@media(max-width:760px){
+ .lp-app-header{height:auto;min-height:64px;padding:10px 14px;gap:10px}
+ .lp-app-header .lp-app-brand{gap:8px}
+ .lp-app-header .lp-logo.small{width:34px;height:34px;border-radius:10px}
+ .lp-app-header .lp-app-brand-copy strong{font-size:13px}
+ .lp-app-header .lp-app-brand-copy span{font-size:7px;letter-spacing:.8px}
+ .lp-app-header .lp-app-header-user{gap:6px}
+ .lp-app-header .lp-app-header-name{display:none}
+ .lp-app-header .lp-user-role{font-size:9px;padding:5px 6px}
+ .lp-app-header .lp-icon-button{width:32px;height:32px;flex-basis:32px}
+}
+@media(max-width:400px){
+ .lp-app-header .lp-app-brand-copy span{display:none}
+ .lp-app-header .lp-user-role{display:none}
+ .lp-app-header .lp-app-header-user{gap:5px}
+}
