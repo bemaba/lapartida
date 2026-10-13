@@ -466,7 +466,7 @@ export default function RecipesPage() {
     if (status === "published") {
       const unpublished = collectIntermediateRecipes(recipe, recipes).filter(item => item.recipe.status !== "published");
       if (unpublished.length) {
-        setNotice("Antes de publicar esta ficha, publica sus elaboraciones intermedias: " + [...new Set(unpublished.map(item => item.recipe.title)).join(", ")]);
+        setNotice("Antes de publicar esta ficha, publica sus elaboraciones intermedias: " + [...new Set(unpublished.map(item => item.recipe.title))].join(", ")]);
         return;
       }
     }
