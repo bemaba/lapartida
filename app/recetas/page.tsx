@@ -94,6 +94,8 @@ export default function RecipesPage() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("available");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [selected, setSelected] = useState<Recipe | null>(null);
@@ -238,6 +240,22 @@ export default function RecipesPage() {
     const matchesStatus = statusFilter === "all" || (statusFilter === "available" ? recipe.status !== "archived" : recipe.status === statusFilter);
     return matchesQuery && matchesCategory && matchesStatus;
   }), [recipes, query, categoryFilter, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRecipes.length / pageSize));
+  const paginatedRecipes = useMemo(
+    () => filteredRecipes.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredRecipes, currentPage, pageSize]
+  );
+  const firstVisibleRecipe = filteredRecipes.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const lastVisibleRecipe = Math.min(currentPage * pageSize, filteredRecipes.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, categoryFilter, statusFilter, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > pageCount) setCurrentPage(pageCount);
+  }, [currentPage, pageCount]);
 
   const startNew = () => {
     setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
@@ -438,7 +456,7 @@ export default function RecipesPage() {
             <select aria-label="Filtrar por estado" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="available">Activas</option><option value="all">Todos los estados</option><option value="published">Publicadas</option><option value="draft">Borradores</option><option value="archived">Archivadas</option></select>
           </div>
           {loading ? <div className="lp-week-empty">Cargando recetas…</div> : filteredRecipes.length === 0 ? <div className="lp-week-empty"><BookOpen size={28}/><strong>No hay recetas para mostrar</strong><span>{recipes.length ? "Prueba a cambiar los filtros." : "Crea la primera receta para empezar el recetario compartido."}</span>{!recipes.length && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primera receta</button>}</div> :
-            <div className="lp-recipe-grid-cards">{filteredRecipes.map(recipe=><article className="lp-recipe-card" key={recipe.id}>
+            <div className="lp-recipe-grid-cards">{paginatedRecipes.map(recipe=><article className="lp-recipe-card" key={recipe.id}>
               {recipe.photo_url ? <img className="lp-recipe-photo" src={recipe.photo_url} alt={recipe.title} loading="lazy"/> : <div className="lp-recipe-photo lp-recipe-photo-empty"><ImageIcon size={30}/><span>Sin fotografía</span></div>}
               <div className="lp-recipe-card-body">
                 <div className="lp-recipe-card-top"><span className="lp-recipe-category">{recipe.category}</span><span className={`lp-recipe-status ${recipe.status}`}>{recipe.status==="published"?"Publicada":recipe.status==="draft"?"Borrador":"Archivada"}</span></div>
@@ -447,6 +465,19 @@ export default function RecipesPage() {
                 <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setTargetServings(recipe.servings);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
               </div>
             </article>)}</div>}
+          {!loading && filteredRecipes.length > 0 && <div className="lp-recipe-pagination">
+            <div className="lp-recipe-pagination-summary">Mostrando <strong>{firstVisibleRecipe}–{lastVisibleRecipe}</strong> de <strong>{filteredRecipes.length}</strong> recetas</div>
+            <div className="lp-recipe-pagination-controls">
+              <label>Por página
+                <select aria-label="Recetas por página" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+                  <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
+                </select>
+              </label>
+              <button type="button" className="lp-button lp-secondary lp-page-button" onClick={() => setCurrentPage(page => Math.max(1, page - 1))} disabled={currentPage <= 1} aria-label="Página anterior">‹ Anterior</button>
+              <span className="lp-recipe-page-number">Página {currentPage} de {pageCount}</span>
+              <button type="button" className="lp-button lp-secondary lp-page-button" onClick={() => setCurrentPage(page => Math.min(pageCount, page + 1))} disabled={currentPage >= pageCount} aria-label="Página siguiente">Siguiente ›</button>
+            </div>
+          </div>}
         </section>
       </div>
 
