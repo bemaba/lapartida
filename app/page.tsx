@@ -23,7 +23,11 @@ function formatDate(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Madrid" }).format(new Date(value));
 }
-function toDateTimeLocal(value: string) {\n  const date = new Date(value);\n  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);\n}\nfunction formatTime(value: string | null) {
+function toDateTimeLocal(value: string) {
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+function formatTime(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(value));
 }
@@ -71,7 +75,11 @@ export default function Home() {
   const [tab, setTab] = useState<"jornada" | "equipo" | "fichajes">("jornada");
   const [newEmployeeName, setNewEmployeeName] = useState("");
   const [newEmployeeEmail, setNewEmployeeEmail] = useState("");
-  const [creatingEmployee, setCreatingEmployee] = useState(false);\n  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);\n  const [editClockIn, setEditClockIn] = useState("");\n  const [editClockOut, setEditClockOut] = useState("");\n  const [savingEntry, setSavingEntry] = useState(false);
+  const [creatingEmployee, setCreatingEmployee] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editClockIn, setEditClockIn] = useState("");
+  const [editClockOut, setEditClockOut] = useState("");
+  const [savingEntry, setSavingEntry] = useState(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
