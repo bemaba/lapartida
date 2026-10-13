@@ -105,25 +105,19 @@ export default function Home() {
   };
   const clockIn = () => {
     if (!supabase || !session) return;
-    void runAction(() => supabase.from("time_entries").insert({ user_id: session.user.id }), "Entrada registrada correctamente.");
+    void runAction(() => supabase.rpc("clock_in"), "Entrada registrada correctamente.");
   };
   const clockOut = () => {
     if (!supabase || !entry) return;
-    void runAction(async () => {
-      if (activeBreak) {
-        const closed = await supabase.from("breaks").update({ ended_at: new Date().toISOString() }).eq("id", activeBreak.id);
-        if (closed.error) return closed;
-      }
-      return supabase.from("time_entries").update({ clock_out: new Date().toISOString() }).eq("id", entry.id);
-    }, "Salida registrada correctamente.");
+    void runAction(() => supabase.rpc("clock_out"), "Salida registrada correctamente.");
   };
   const startBreak = () => {
     if (!supabase || !entry) return;
-    void runAction(() => supabase.from("breaks").insert({ time_entry_id: entry.id }), "Pausa iniciada.");
+    void runAction(() => supabase.rpc("start_break"), "Pausa iniciada.");
   };
   const endBreak = () => {
     if (!supabase || !activeBreak) return;
-    void runAction(() => supabase.from("breaks").update({ ended_at: new Date().toISOString() }).eq("id", activeBreak.id), "Pausa finalizada.");
+    void runAction(() => supabase.rpc("end_break"), "Pausa finalizada.");
   };
   const exportCsv = () => {
     const rows = [["Empleado", "Entrada", "Salida"], ...entries.map(e => [e.profiles?.[0]?.full_name || e.user_id, formatDate(e.clock_in), formatDate(e.clock_out)])];
