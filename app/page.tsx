@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChefHat, Clock3, Play, Pause, Square, Users, Download, ShieldCheck, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet, Pencil, Save, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
@@ -57,6 +58,7 @@ function formatMinutes(minutes: number) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const supabase = getSupabase();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -142,6 +144,11 @@ export default function Home() {
   }, [supabase, session, weekOffset]);
 
   useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setWeeklyEntries([]); setEmployeeHistory([]); setProfiles([]); } }, [session, refresh]);
+
+  // El módulo de fichaje queda oculto temporalmente; conservamos todo su código.
+  useEffect(() => {
+    if (!loading && session && profile?.active) router.replace("/menus");
+  }, [loading, session, profile, router]);
 
   const doLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -282,7 +289,7 @@ export default function Home() {
 
   if (!supabase) return <main className="lp-center"><section className="lp-card lp-config"><div className="lp-logo"><ChefHat size={25}/></div><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p><p className="lp-muted">Añade la URL del proyecto y la clave pública en las variables de entorno de Vercel y vuelve a desplegar.</p></section></main>;
   if (loading) return <main className="lp-center"><div className="lp-card"><ChefHat/><p>Cargando La Partida…</p></div></main>;
-  if (!session) return <main className="lp-center"><section className="lp-card lp-login"><div className="lp-logo"><ChefHat size={26}/></div><div className="lp-kicker">CONTROL HORARIO DE COCINA</div><h1>La Partida</h1><p className="lp-muted">Inicia sesión para fichar o gestionar el equipo.</p><form onSubmit={doLogin} className="lp-form"><label>Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@correo.com"/></label><label>Contraseña<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Tu contraseña"/></label><button className="lp-button lp-primary" disabled={busy}>{busy ? "Entrando…" : "Iniciar sesión"}</button></form>{notice && <p className="lp-notice">{notice}</p>}<p className="lp-forgot"><Link href="/forgot-password">¿Has olvidado tu contraseña?</Link></p><p className="lp-footnote">Acceso privado · Zona horaria Europe/Madrid</p></section></main>;
+  if (!session) return <main className="lp-center"><section className="lp-card lp-login"><div className="lp-logo"><ChefHat size={26}/></div><div className="lp-kicker">GESTIÓN DE COCINA</div><h1>La Partida</h1><p className="lp-muted">Inicia sesión para consultar las recetas y gestionar los menús.</p><form onSubmit={doLogin} className="lp-form"><label>Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@correo.com"/></label><label>Contraseña<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Tu contraseña"/></label><button className="lp-button lp-primary" disabled={busy}>{busy ? "Entrando…" : "Iniciar sesión"}</button></form>{notice && <p className="lp-notice">{notice}</p>}<p className="lp-forgot"><Link href="/forgot-password">¿Has olvidado tu contraseña?</Link></p><p className="lp-footnote">Acceso privado · Zona horaria Europe/Madrid</p></section></main>;
 
   return <main className="lp-app">
     <AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => void doLogout()} />
