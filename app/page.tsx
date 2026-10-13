@@ -5,7 +5,7 @@ import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck } from "lucide-react";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
-type Entry = { id: string; user_id: string; clock_in: string; clock_out: string | null; profiles?: { full_name: string }[] | null };
+type Entry = { id: string; user_id: string; clock_in: string; clock_out: string | null; profiles?: { full_name: string }[] | null; breaks?: BreakRow[] | null };
 type BreakRow = { id: string; time_entry_id: string; started_at: string; ended_at: string | null };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,6 +37,7 @@ export default function Home() {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [activeBreak, setActiveBreak] = useState<BreakRow | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [employeeHistory, setEmployeeHistory] = useState<Entry[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [tab, setTab] = useState<"jornada" | "equipo" | "fichajes">("jornada");
 
@@ -73,6 +74,15 @@ export default function Home() {
       if (entriesResult.error) setNotice("No se pudieron cargar los fichajes: " + entriesResult.error.message);
       else setEntries((entriesResult.data || []) as Entry[]);
     }
+    const { data: historyData, error: historyError } = await supabase
+      .from("time_entries")
+      .select("id,user_id,clock_in,clock_out,breaks(id,time_entry_id,started_at,ended_at)")
+      .eq("user_id", session.user.id)
+      .order("clock_in", { ascending: false })
+      .limit(30);
+    if (historyError) setNotice("No se pudo cargar tu histórico: " + historyError.message);
+    else setEmployeeHistory((historyData || []) as Entry[]);
+
     const { data: openEntry, error: entryError } = await supabase.from("time_entries")
       .select("id,user_id,clock_in,clock_out").eq("user_id", session.user.id).is("clock_out", null).maybeSingle();
     if (entryError) { setNotice("No se pudo consultar tu jornada: " + entryError.message); return; }
@@ -85,7 +95,7 @@ export default function Home() {
     } else setActiveBreak(null);
   }, [supabase, session]);
 
-  useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setProfiles([]); } }, [session, refresh]);
+  useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setEmployeeHistory([]); setProfiles([]); } }, [session, refresh]);
 
   const doLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -125,6 +135,11 @@ export default function Home() {
     const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a"); a.href = url; a.download = "la-partida-fichajes.csv"; a.click(); URL.revokeObjectURL(url);
   };
+  const formatDuration = (start: string, end: string | null) => {
+    if (!end) return "En curso";
+    const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
+    return String(Math.floor(minutes / 60)) + " h " + String(minutes % 60).padStart(2, "0") + " min";
+  };
   const workingCount = useMemo(() => entries.filter(e => !e.clock_out).length, [entries]);
 
   if (!supabase) return <main className="lp-center"><section className="lp-card lp-config"><div className="lp-logo"><ChefHat size={25}/></div><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p><p className="lp-muted">Añade la URL del proyecto y la clave pública en las variables de entorno de Vercel y vuelve a desplegar.</p></section></main>;
@@ -136,7 +151,7 @@ export default function Home() {
     <div className="lp-content"><div className="lp-heading"><div><div className="lp-kicker">ESPACIO DE TRABAJO</div><h1>{profile?.role === "admin" ? "Panel de administración" : "Mi jornada"}</h1><p>{profile?.role === "admin" ? "Consulta los fichajes y el estado del equipo." : "Registra tu entrada, tus pausas y tu salida."}</p></div><span className="lp-role"><ShieldCheck size={15}/>{profile?.role === "admin" ? "Administradora" : "Empleado"}</span></div>
       {notice && <div className="lp-notice" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
       {!profile?.active && <div className="lp-notice">Tu cuenta está desactivada. Contacta con la administradora.</div>}
-      {profile?.active && profile.role === "employee" && <section className="lp-card lp-shift-card"><div className="lp-card-title"><div><span className="lp-kicker">ESTADO ACTUAL</span><h2>{!entry ? "Todavía no has fichado" : activeBreak ? "Estás en pausa" : "Jornada en curso"}</h2></div><span className={"lp-status " + (!entry ? "off" : activeBreak ? "break" : "on")}>{!entry ? "Sin fichar" : activeBreak ? "En pausa" : "Trabajando"}</span></div>{entry && <p className="lp-time-line">Entrada de hoy: <strong>{formatTime(entry.clock_in)}</strong></p>}<div className="lp-actions">{!entry ? <button className="lp-button lp-primary" onClick={clockIn} disabled={busy}><Play size={17}/> Fichar entrada</button> : <>{!activeBreak ? <button className="lp-button lp-secondary" onClick={startBreak} disabled={busy}><Pause size={17}/> Iniciar pausa</button> : <button className="lp-button lp-secondary" onClick={endBreak} disabled={busy}><Play size={17}/> Terminar pausa</button>}<button className="lp-button lp-danger" onClick={clockOut} disabled={busy}><Square size={15}/> Fichar salida</button></>}</div><p className="lp-muted small-text">Las horas se muestran en horario peninsular. Comprueba siempre que el registro sea correcto.</p></section>}
+      {profile?.active && profile.role === "employee" && <><section className="lp-card lp-shift-card"><div className="lp-card-title"><div><span className="lp-kicker">ESTADO ACTUAL</span><h2>{!entry ? "No hay ninguna jornada abierta" : activeBreak ? "Estás en pausa" : "Jornada en curso"}</h2></div><span className={"lp-status " + (!entry ? "off" : activeBreak ? "break" : "on")}>{!entry ? "Fuera de jornada" : activeBreak ? "En pausa" : "Trabajando"}</span></div>{entry && <p className="lp-time-line">Entrada de esta jornada: <strong>{formatTime(entry.clock_in)}</strong></p>}<div className="lp-actions">{!entry ? <button className="lp-button lp-primary" onClick={clockIn} disabled={busy}><Play size={17}/> Fichar entrada</button> : <>{!activeBreak ? <button className="lp-button lp-secondary" onClick={startBreak} disabled={busy}><Pause size={17}/> Iniciar pausa</button> : <button className="lp-button lp-secondary" onClick={endBreak} disabled={busy}><Play size={17}/> Terminar pausa</button>}<button className="lp-button lp-danger" onClick={clockOut} disabled={busy}><Square size={15}/> Fichar salida</button></>}</div><p className="lp-muted small-text">Las horas se muestran en horario peninsular. Comprueba siempre que el registro sea correcto.</p></section><section className="lp-card lp-history-card"><div className="lp-card-title"><div><span className="lp-kicker">TUS REGISTROS</span><h2>Histórico de jornadas</h2></div><button className="lp-icon-button" onClick={() => void refresh()} title="Actualizar histórico"><RefreshCw size={16}/></button></div><p className="lp-muted small-text">Tus últimas 30 jornadas, ordenadas de la más reciente a la más antigua.</p><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Duración</th><th>Pausas</th></tr></thead><tbody>{employeeHistory.map(h => <tr key={h.id}><td>{new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeZone: "Europe/Madrid" }).format(new Date(h.clock_in))}</td><td>{formatTime(h.clock_in)}</td><td>{formatTime(h.clock_out)}</td><td>{formatDuration(h.clock_in, h.clock_out)}</td><td>{(h.breaks || []).length}</td></tr>)}</tbody></table>{!employeeHistory.length && <p className="lp-muted">Todavía no tienes jornadas registradas.</p>}</div></section></>}
       {profile?.role === "admin" && <><nav className="lp-tabs"><button className={tab === "jornada" ? "active" : ""} onClick={() => setTab("jornada")}><Clock3 size={16}/> Resumen</button><button className={tab === "equipo" ? "active" : ""} onClick={() => setTab("equipo")}><Users size={16}/> Equipo ({profiles.length})</button><button className={tab === "fichajes" ? "active" : ""} onClick={() => setTab("fichajes")}><Clock3 size={16}/> Fichajes</button></nav>{tab === "jornada" && <div className="lp-stats"><section className="lp-card"><span className="lp-muted">Empleados activos</span><strong>{profiles.filter(p => p.active && p.role === "employee").length}</strong></section><section className="lp-card"><span className="lp-muted">Jornadas abiertas</span><strong>{workingCount}</strong></section><section className="lp-card"><span className="lp-muted">Registros consultados</span><strong>{entries.length}</strong></section></div>}{tab === "equipo" && <section className="lp-card"><h2>Equipo</h2><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>{profiles.map(p => <tr key={p.user_id}><td>{p.full_name || "Sin nombre"}</td><td>{p.role === "admin" ? "Administradora" : "Empleado"}</td><td>{p.active ? "Activo" : "Desactivado"}</td><td className="lp-id">{p.user_id.slice(0, 8)}…</td></tr>)}</tbody></table></div><p className="lp-muted small-text">Para crear usuarios nuevos, usa Authentication → Users en Supabase. Después podremos añadir una pantalla de gestión segura.</p></section>}{tab === "fichajes" && <section className="lp-card"><div className="lp-card-title"><h2>Fichajes recientes</h2><button className="lp-button lp-secondary" onClick={exportCsv} disabled={!entries.length}><Download size={16}/> Exportar CSV</button></div><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody>{entries.map(e => <tr key={e.id}><td>{e.profiles?.[0]?.full_name || e.user_id.slice(0, 8) + "…"}</td><td>{formatDate(e.clock_in)}</td><td>{formatDate(e.clock_out)}</td><td><span className={"lp-status " + (e.clock_out ? "off" : "on")}>{e.clock_out ? "Finalizado" : "Abierto"}</span></td></tr>)}</tbody></table>{!entries.length && <p className="lp-muted">Todavía no hay fichajes.</p>}</div></section>}</>}
       <footer className="lp-footer">La Partida · Primera versión conectada · Revisa los registros antes de usarlos oficialmente.</footer>
     </div>
