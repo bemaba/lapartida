@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: supabase-schema-baseline-review
@@ -38,20 +37,13 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          test ! -e supabase/migrations/20261012000000_remote_schema_baseline.sql || (echo "Baseline file already exists; refusing to overwrite it." && exit 1)
-          supabase db dump --linked --schema public --file supabase/migrations/20261012000000_remote_schema_baseline.sql
-          printf '\n-- BASELINE ONLY: this file describes the pre-existing remote schema.\n-- Do not apply it to the existing project with db push.\n-- Review and mark this version as applied in migration history before applying later migrations.\n' >> supabase/migrations/20261012000000_remote_schema_baseline.sql
+          supabase db dump --linked --schema public --file remote_schema_baseline.sql
+          printf '\n-- BASELINE ONLY: this file describes the pre-existing remote schema.\n-- Do not apply it to the existing project with db push.\n-- Review and register its version as already applied before applying later migrations.\n' >> remote_schema_baseline.sql
 
-      - name: Open review pull request
-        uses: peter-evans/create-pull-request@v7
+      - name: Upload schema snapshot
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: chore/supabase-schema-baseline
-          delete-branch: true
-          commit-message: "Capture existing Supabase schema baseline"
-          title: "Review existing Supabase schema baseline"
-          body: |
-            This pull request captures the current public schema from the linked Supabase project as a reviewable baseline.
-
-            This is a schema snapshot only. It contains no table data. Do not merge and run db push until the baseline has been reviewed and its version is registered as already applied in the remote migration history.
-          add-paths: supabase/migrations/20261012000000_remote_schema_baseline.sql
+          name: supabase-public-schema-baseline
+          path: remote_schema_baseline.sql
+          if-no-files-found: error
+          retention-days: 7
