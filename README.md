@@ -27,6 +27,7 @@ Todos los workflows descritos abajo son manuales: ve a **Actions**, elige el nom
 | **Register Supabase baseline** | Marca la migración baseline `20261012000000` como aplicada en el historial de Supabase, sin ejecutar el SQL del archivo. | Fue una tarea de configuración inicial y ya se ejecutó correctamente. No la ejecutes como parte del trabajo habitual ni para registrar migraciones nuevas. |
 | **Apply recipes migration** | Comprueba que el baseline está registrado y que la migración de recetas está pendiente; después ejecuta `supabase db push --linked` y verifica el historial. | Fue la instalación inicial del módulo de recetas. Ya se ejecutó correctamente. No volver a ejecutarla para cambios nuevos: prepara una migración nueva con una versión nueva. |
 | **Apply recipe photo storage migration** | Comprueba que el baseline y recetas ya están aplicados; crea/configura el bucket de fotos de recetas y las políticas de acceso; verifica el historial. | Fue la configuración inicial para poder subir fotos de recetas. Ya se ejecutó correctamente. No es necesario repetirla rutinariamente. |
+| **Import Una fuerza del pasado recipes** | Verifica las migraciones existentes y ejecuta una migración idempotente que añade dos recetas como borradores. | Importación inicial del menú temático. Ejecutar una sola vez; el workflow se detiene si la migración ya está aplicada o falta el usuario administrador esperado. |
 
 ### Estado conocido del proyecto (13 de octubre de 2026)
 
@@ -35,10 +36,24 @@ La configuración inicial se realizó y estos tres pasos se verificaron en GitHu
 1. Baseline `20261012000000`: registrado como aplicado, sin ejecutar su SQL en producción.
 2. Recetas `20261013090000`: aplicada.
 3. Almacenamiento de fotos `20261013150000`: aplicada.
+4. Importación de recetas `20261013170000`: pendiente de ejecutar desde GitHub Actions; añade carrillera y postre de chocolate como borradores con la etiqueta `Una fuerza del pasado`.
 
 El workflow de fotos terminó correctamente en [esta ejecución](https://github.com/bemaba/lapartida/actions/runs/38402582496).
 
 El baseline describe la estructura que existía antes de empezar a versionar el esquema. **No lo apliques con `db push` al proyecto actual**: está registrado para que Supabase lo trate como ya aplicado, no para recrear las tablas existentes.
+
+## Importar las recetas del menú «Una fuerza del pasado»
+
+El workflow **Import Una fuerza del pasado recipes** incorpora las dos recetas de las últimas pestañas del Excel como borradores en el módulo Recetas:
+
+- **Carrillera de ternera, castañas glaseadas, jugo reducido al vino tinto y parmentier de patata trufada** — categoría Principal.
+- **Texturas de chocolate, aceite de oliva y sal** — categoría Postre.
+
+Las dos llevan la etiqueta «Una fuerza del pasado». La categoría del plato y la etiqueta del menú son campos distintos: la categoría permite clasificar el plato y la etiqueta identifica el menú temático. Así se podrán reutilizar recetas en menús futuros sin duplicarlas. El constructor formal de menús todavía sería una funcionalidad aparte.
+
+La importación conserva cantidades, rendimiento y pasos presentes en el Excel. Los tiempos de preparación/cocción no se completan cuando no se pueden representar fielmente con un único valor. Las recetas quedan en borrador para revisión. Los alérgenos se han inferido de ingredientes explícitos y las fichas técnicas de productos comerciales deben verificarse antes de publicar.
+
+Para ejecutar la importación, abre [GitHub Actions](https://github.com/bemaba/lapartida/actions), selecciona **Import Una fuerza del pasado recipes** y pulsa **Run workflow** en la rama `main`. No ejecutes otra vez el workflow después de que la migración `20261013170000` figure como aplicada.
 
 ## Cómo añadir un cambio nuevo a la base de datos
 
