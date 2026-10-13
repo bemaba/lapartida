@@ -279,3 +279,24 @@
 .lp-import-recipes-button input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .lp-import-recipes-button:has(input:disabled){opacity:.65;cursor:wait}
 @media(max-width:760px){.lp-recipe-heading-actions{width:100%;justify-content:flex-start}.lp-recipe-heading-actions .lp-button{flex:1;justify-content:center}}
+
+
+/* Printable kitchen recipe sheet */
+@media print{
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff!important;color:#111!important}
+  body *{visibility:hidden!important}
+  .lp-recipe-overlay,.lp-recipe-overlay *{visibility:visible!important}
+  .lp-recipe-overlay{position:absolute!important;inset:0!important;display:block!important;padding:0!important;background:#fff!important;overflow:visible!important}
+  .lp-recipe-detail{width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important}
+  .lp-recipe-detail>.lp-card-title{border-bottom:2px solid #244f3b;padding-bottom:10px;margin-bottom:14px}
+  .lp-recipe-detail>.lp-card-title h2{font-size:22pt!important;color:#111!important}
+  .lp-recipe-detail p,.lp-recipe-detail li,.lp-recipe-detail h3,.lp-recipe-detail-meta{color:#111!important}
+  .lp-recipe-detail-photo-wrap{margin:10px 0!important;max-height:45mm;overflow:hidden}
+  .lp-recipe-detail-photo{max-height:45mm!important;object-fit:contain!important;object-position:left!important;width:auto!important;max-width:100%!important}
+  .lp-recipe-detail-photo-expand,.lp-recipe-detail-footer,.lp-recipe-audit,.lp-recipe-ingredients-heading input,.lp-recipe-detail>.lp-card-title>button,.lp-print-recipe,.lp-recipe-actions{display:none!important}
+  .lp-recipe-ingredients-heading{margin-top:12px!important}
+  .lp-recipe-ingredient-detail,.lp-recipe-step-detail{gap:5px!important}
+  .lp-recipe-detail h3{break-after:avoid}
+  .lp-recipe-ingredient-detail li,.lp-recipe-step-detail li{break-inside:avoid}
+}
