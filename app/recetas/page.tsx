@@ -10,7 +10,7 @@ import {
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
-type Ingredient = { name: string; quantity: string; note: string };
+type Ingredient = { name: string; quantity: string; note: string; recipe_id?: string | null };
 type RecipeStep = { instruction: string; minutes: string; temperature: string };
 type Recipe = {
   id: string;
@@ -53,6 +53,33 @@ const initialForm = () => ({
   ingredients: [emptyIngredient()], steps: [emptyStep()], allergens: [] as string[], allergenCustomText: "",
   dietary_tags: [] as string[], dietaryCustomText: "", storage_notes: ""
 });
+
+function collectIntermediateRecipes(recipe: Recipe, recipes: Recipe[], seen = new Set<string>()): Recipe[] {
+  const result: Recipe[] = [];
+  for (const ingredient of recipe.ingredients || []) {
+    if (!ingredient.recipe_id || seen.has(ingredient.recipe_id)) continue;
+    const linked = recipes.find(item => item.id === ingredient.recipe_id);
+    if (!linked) continue;
+    seen.add(linked.id);
+    result.push(linked);
+    result.push(...collectIntermediateRecipes(linked, recipes, seen));
+  }
+  return result;
+}
+
+function PrintableRecipeSection({ recipe }: { recipe: Recipe }) {
+  return <section className="lp-recipe-print-section">
+    <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2>{recipe.title}</h2><p>{recipe.cuisine_type} · {recipe.category} · {recipe.servings} pax</p></div></div>
+    {recipe.description && <p>{recipe.description}</p>}
+    <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {recipe.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {recipe.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {recipe.difficulty}</span></div>
+    <h3>Ingredientes</h3>
+    <ul className="lp-recipe-ingredient-detail">{(recipe.ingredients || []).map((item,index)=><li key={index}><strong>{item.quantity || "Cantidad al gusto"}</strong> {item.name}{item.note ? <span> — {item.note}</span> : null}</li>)}</ul>
+    <h3>Elaboración</h3>
+    <ol className="lp-recipe-step-detail">{(recipe.steps || []).map((step,index)=><li key={index}><p>{step.instruction}</p>{(step.minutes || step.temperature) && <small>{step.minutes ? step.minutes+" min" : ""}{step.minutes && step.temperature ? " · " : ""}{step.temperature}</small>}</li>)}</ol>
+    {recipe.allergens?.length > 0 && <><h3>Alérgenos declarados</h3><p>{recipe.allergens.join(", ")}</p></>}
+    {recipe.storage_notes && <><h3>Conservación y servicio</h3><p>{recipe.storage_notes}</p></>}
+  </section>;
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeZone: "Europe/Madrid" }).format(new Date(value));
@@ -99,6 +126,7 @@ export default function RecipesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [selected, setSelected] = useState<Recipe | null>(null);
+  const [recipeHistory, setRecipeHistory] = useState<Recipe[]>([]);
   const [targetServings, setTargetServings] = useState(10);
   const [form, setForm] = useState(initialForm);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -257,6 +285,20 @@ export default function RecipesPage() {
     if (currentPage > pageCount) setCurrentPage(pageCount);
   }, [currentPage, pageCount]);
 
+  const openLinkedRecipe = (recipe: Recipe) => {
+    if (!selected) return;
+    setRecipeHistory(history => [...history, selected]);
+    setTargetServings(recipe.servings);
+    setSelected(recipe);
+  };
+  const returnToPreviousRecipe = () => {
+    const previous = recipeHistory[recipeHistory.length - 1];
+    if (!previous) return;
+    setRecipeHistory(history => history.slice(0, -1));
+    setTargetServings(previous.servings);
+    setSelected(previous);
+  };
+
   const startNew = () => {
     setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
   };
@@ -310,7 +352,7 @@ export default function RecipesPage() {
       prep_minutes: form.prep_minutes === "" ? null : Math.max(0, Number(form.prep_minutes) || 0),
       cook_minutes: form.cook_minutes === "" ? null : Math.max(0, Number(form.cook_minutes) || 0),
       difficulty: form.difficulty,
-      ingredients: form.ingredients.filter(item => item.name.trim()).map(item => ({ name: item.name.trim(), quantity: item.quantity.trim(), note: item.note.trim() })),
+      ingredients: form.ingredients.filter(item => item.name.trim()).map(item => ({ name: item.name.trim(), quantity: item.quantity.trim(), note: item.note.trim(), recipe_id: item.recipe_id || null })),
       steps: form.steps.filter(item => item.instruction.trim()).map(item => ({ instruction: item.instruction.trim(), minutes: item.minutes.trim(), temperature: item.temperature.trim() })),
       allergens: form.allergens,
       dietary_tags: form.dietary_tags,
@@ -424,6 +466,7 @@ export default function RecipesPage() {
                 <label>Ingrediente<input value={item.name} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,name:e.target.value}:row)}))} placeholder="Ej. Harina"/></label>
                 <label>Cantidad y unidad<input value={item.quantity} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,quantity:e.target.value}:row)}))} placeholder="500 g"/></label>
                 <label>Notas<input value={item.note} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,note:e.target.value}:row)}))} placeholder="Tamizada, picado…"/></label>
+                <label>Receta intermedia<select value={item.recipe_id || ""} onChange={e=>{const recipeId=e.target.value || null;const linked=recipes.find(recipe=>recipe.id===recipeId);setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,recipe_id:recipeId,name:row.name.trim() || linked?.title || ""}:row)}));}}><option value="">Sin vincular</option>{recipes.filter(recipe=>recipe.id!==(editing?.id || "") && recipe.status!=="archived").map(recipe=><option key={recipe.id} value={recipe.id}>{recipe.title}{recipe.status==="draft"?" (borrador)":""}</option>)}</select></label>
                 <button type="button" className="lp-icon-button" onClick={()=>setForm(current=>({...current,ingredients:current.ingredients.filter((_,i)=>i!==index).length?current.ingredients.filter((_,i)=>i!==index):[emptyIngredient()]}))} aria-label="Eliminar ingrediente"><X size={15}/></button>
               </div>)}
               <button type="button" className="lp-button lp-secondary lp-add-row" onClick={()=>setForm(current=>({...current,ingredients:[...current.ingredients,emptyIngredient()]}))}><Plus size={15}/> Añadir ingrediente</button>
@@ -483,11 +526,11 @@ export default function RecipesPage() {
 
       {selected && <div className="lp-recipe-overlay" role="presentation" onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
         <section className="lp-card lp-recipe-detail" role="dialog" aria-modal="true" aria-labelledby="recipe-detail-title">
-          <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2 id="recipe-detail-title">{selected.title}</h2><p className="lp-muted small-text">{selected.cuisine_type} · {selected.category} · {selected.servings} pax</p></div><button className="lp-icon-button" onClick={()=>setSelected(null)} aria-label="Cerrar receta"><X size={17}/></button></div>
+          <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2 id="recipe-detail-title">{selected.title}</h2><p className="lp-muted small-text">{selected.cuisine_type} · {selected.category} · {selected.servings} pax</p></div><div className="lp-recipe-nav-actions">{recipeHistory.length>0&&<button type="button" className="lp-button lp-secondary" onClick={returnToPreviousRecipe}>← Volver a receta anterior</button>}<button className="lp-icon-button" onClick={()=>{setSelected(null);setRecipeHistory([]);}} aria-label="Cerrar receta"><X size={17}/></button></div></div>
           {selected.photo_url && <div className="lp-recipe-detail-photo-wrap"><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><button type="button" className="lp-recipe-detail-photo-expand" onClick={e=>{e.stopPropagation();setExpandedPhoto(true)}} aria-label={`Ampliar fotografía de ${selected.title}`} title="Ampliar fotografía"><Maximize2 size={18}/></button></div>}
           <p>{selected.description || "Sin descripción."}</p>
           <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {selected.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {selected.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {selected.difficulty}</span></div>
-          <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=><li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}</li>)}</ul>
+          <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=>{const linked=item.recipe_id?recipes.find(recipe=>recipe.id===item.recipe_id):null;return <li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}{linked&&<button type="button" className="lp-inline-recipe-link" onClick={()=>openLinkedRecipe(linked)}>Ver receta intermedia: {linked.title} ↗</button>}</li>;})}</ul>
           <h3>Elaboración</h3><ol className="lp-recipe-step-detail">{selected.steps?.map((step,index)=><li key={index}><p>{step.instruction}</p>{(step.minutes||step.temperature)&&<small>{step.minutes?step.minutes+" min":""}{step.minutes&&step.temperature?" · ":""}{step.temperature}</small>}</li>)}</ol>
           {selected.allergens?.length>0&&<><h3>Alérgenos declarados</h3><div className="lp-recipe-tags">{selected.allergens.map(item=><span key={item}>{item}</span>)}</div></>}
           {selected.dietary_tags?.length>0&&<><h3>Características</h3><div className="lp-recipe-tags">{selected.dietary_tags.map(item=><span key={item}>{item}</span>)}</div></>}
@@ -496,7 +539,7 @@ export default function RecipesPage() {
           <div className="lp-recipe-detail-footer">
             <span className={`lp-recipe-status ${selected.status}`}>{selected.status==="published"?"Publicada":selected.status==="draft"?"Borrador pendiente de revisión":"Archivada"}</span>
             <div className="lp-recipe-actions">
-              <button type="button" className="lp-button lp-secondary lp-print-recipe" onClick={() => window.print()}><Printer size={15}/> Imprimir receta</button>
+              <button type="button" className="lp-button lp-secondary lp-print-recipe" onClick={() => window.print()}><Printer size={15}/>{collectIntermediateRecipes(selected, recipes).length ? " Imprimir receta e intermedias" : " Imprimir receta"}</button>
               {(isAdmin || (selected.created_by===session.user.id && selected.status==="draft"))&&<button className="lp-button lp-secondary" onClick={()=>startEdit(selected)}><Pencil size={15}/> Editar</button>}
               {isAdmin&&selected.status!=="published"&&<button className="lp-button lp-primary" onClick={()=>void adminUpdateStatus(selected,"published")}><CheckCircle2 size={15}/> Publicar</button>}
               {isAdmin&&selected.status!=="archived"&&<button className="lp-button lp-secondary" onClick={()=>void adminUpdateStatus(selected,"archived")}><Archive size={15}/> Archivar</button>}
@@ -506,6 +549,7 @@ export default function RecipesPage() {
           <p className="lp-recipe-audit">Creada el {formatDate(selected.created_at)} · Actualizada el {formatDate(selected.updated_at)}</p>
         </section>
       </div>}
+      {selected && <div className="lp-recipe-print-bundle" aria-hidden="true"><PrintableRecipeSection recipe={selected}/>{collectIntermediateRecipes(selected, recipes).map(recipe=><PrintableRecipeSection key={recipe.id} recipe={recipe}/>)}</div>}
       {expandedPhoto && selected?.photo_url && <div className="lp-photo-lightbox" role="dialog" aria-modal="true" aria-label={`Fotografía ampliada de ${selected.title}`} onClick={e=>{if(e.target===e.currentTarget)setExpandedPhoto(false);}}><button type="button" className="lp-photo-lightbox-close" onClick={()=>setExpandedPhoto(false)} aria-label="Cerrar fotografía ampliada"><X size={22}/></button><img src={selected.photo_url} alt={selected.title} onClick={e=>e.stopPropagation()}/><span>Haz clic fuera de la imagen o pulsa × para cerrar</span></div>}
     </main>
   );
