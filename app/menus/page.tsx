@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Plus, Save, Trash2, Utensils, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
+import AppHeader from "@/components/app-header";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
 type Recipe = { id: string; title: string; category: string; servings: number; status: "draft" | "published" | "archived"; photo_url: string | null; tags: string[] };
@@ -154,7 +155,7 @@ export default function MenusPage() {
 
   return (
     <main className="lp-page">
-      <header className="lp-topbar"><Link href="/" className="lp-brand"><div className="lp-logo small"><ChefHat size={20}/></div><div><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div></Link><div className="lp-user"><span>{profile.full_name}</span><span className="lp-user-role">{isAdmin ? "Administración" : "Equipo"}</span></div></header>
+      <AppHeader fullName={profile.full_name || session.user.email || "Usuario"} role={profile.role} onLogout={() => void supabase?.auth.signOut()} />
       <ModuleNavigation activeModule="menus" />
       <div className="lp-content">
         <div className="lp-heading"><div><span className="lp-kicker">ORGANIZACIÓN DE COCINA</span><h1>Menús</h1><p>Crea propuestas combinando las recetas del recetario, sin duplicar fichas.</p></div>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear menú</button>}</div>
