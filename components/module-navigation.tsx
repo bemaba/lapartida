@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BookOpen, CalendarDays, Clock3, LockKeyhole, Package, UsersRound } from "lucide-react";
 import { appModules, type ModuleId } from "@/lib/modules";
 
@@ -22,20 +23,19 @@ export default function ModuleNavigation({ activeModule = "fichaje" }: ModuleNav
       {appModules.map((module) => {
         const Icon = icons[module.icon];
         const active = module.id === activeModule;
-        return (
-          <div
-            key={module.id}
-            className={`lp-module-item ${active ? "active" : ""} ${!module.enabled ? "coming-soon" : ""}`}
-            title={module.enabled ? module.description : `${module.description} Próximamente.`}
-            aria-current={active ? "page" : undefined}
-            aria-disabled={!module.enabled}
-          >
+        const href = module.id === "recetas" ? "/recetas" : "/";
+        const contents = (
+          <>
             <Icon size={17} aria-hidden="true" />
             <span>{module.label}</span>
             {!module.enabled && <LockKeyhole size={13} className="lp-module-lock" aria-label="Próximamente" />}
             {active && <span className="lp-module-current">Activo</span>}
-          </div>
+          </>
         );
+        if (!module.enabled) {
+          return <div key={module.id} className="lp-module-item coming-soon" title={`${module.description} Próximamente.`} aria-disabled="true">{contents}</div>;
+        }
+        return <Link key={module.id} href={href} className={`lp-module-item ${active ? "active" : ""}`} title={module.description} aria-current={active ? "page" : undefined}>{contents}</Link>;
       })}
       <p className="lp-module-hint">Iremos activando nuevos módulos sin cambiar el sistema de fichaje.</p>
     </nav>
