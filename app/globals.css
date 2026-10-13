@@ -271,3 +271,11 @@
 .lp-menu-empty h2{font:800 19px Manrope,sans-serif;margin:0}
 .lp-menu-empty p{font-size:12px;color:var(--muted);margin:0 0 8px}
 @media(max-width:760px){.lp-menu-grid{grid-template-columns:1fr}.lp-menu-picker{grid-template-columns:1fr}.lp-menu-item{grid-template-columns:30px minmax(0,1fr) 34px;gap:8px}.lp-menu-item>label{grid-column:2;grid-row:2}.lp-menu-remove{grid-column:3;grid-row:1}.lp-menu-fields{grid-template-columns:1fr}.lp-menu-fields .wide{grid-column:auto}.lp-menu-form{padding:16px}.lp-menu-card-footer{align-items:flex-start;flex-direction:column}.lp-menu-course{grid-template-columns:78px minmax(0,1fr)}}
+
+
+/* Admin recipe import */
+.lp-recipe-heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.lp-import-recipes-button{position:relative;overflow:hidden;cursor:pointer}
+.lp-import-recipes-button input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.lp-import-recipes-button:has(input:disabled){opacity:.65;cursor:wait}
+@media(max-width:760px){.lp-recipe-heading-actions{width:100%;justify-content:flex-start}.lp-recipe-heading-actions .lp-button{flex:1;justify-content:center}}
