@@ -8,7 +8,7 @@ import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
-type Recipe = { id: string; title: string; category: string; servings: number; status: "draft" | "published" | "archived"; photo_url: string | null; tags: string[] };
+type Recipe = { id: string; title: string; category: string; recipe_type: "final" | "intermediate"; servings: number; status: "draft" | "published" | "archived"; photo_url: string | null; tags: string[] };
 type MenuItem = { id?: string; recipe_id: string; course: string; sort_order: number; recipe?: Recipe };
 type MenuRecord = { id: string; title: string; description: string; theme_label: string; status: "draft" | "published"; created_at: string; menu_items: Array<MenuItem & { recipes?: Recipe | null }> };
 
@@ -56,8 +56,8 @@ export default function MenusPage() {
     setLoading(true);
     const [{ data: p, error: profileError }, { data: recipeRows, error: recipeError }, { data: menuRows, error: menuError }] = await Promise.all([
       supabase.from("profiles").select("user_id,full_name,role,active").eq("user_id", session.user.id).maybeSingle(),
-      supabase.from("recipes").select("id,title,category,servings,status,photo_url,tags").neq("status", "archived").order("title"),
-      supabase.from("menus").select("id,title,description,theme_label,status,created_at,menu_items(id,recipe_id,course,sort_order,recipes(id,title,category,servings,status,photo_url,tags))").order("created_at", { ascending: false })
+      supabase.from("recipes").select("id,title,category,recipe_type,servings,status,photo_url,tags").neq("status", "archived").order("title"),
+      supabase.from("menus").select("id,title,description,theme_label,status,created_at,menu_items(id,recipe_id,course,sort_order,recipes(id,title,category,recipe_type,servings,status,photo_url,tags))").order("created_at", { ascending: false })
     ]);
     if (profileError || !p) setNotice("No se pudo cargar tu perfil. Comprueba tu cuenta en La Partida.");
     else setProfile(p as Profile);
@@ -71,6 +71,7 @@ export default function MenusPage() {
   useEffect(() => { if (session) void refresh(); else { setMenus([]); setRecipes([]); } }, [session, refresh]);
 
   const availableRecipes = useMemo(() => recipes.filter(recipe =>
+    recipe.recipe_type === "final" &&
     (isAdmin || recipe.status === "published") &&
     (recipe.title + " " + recipe.category + " " + (recipe.tags || []).join(" ")).toLocaleLowerCase("es").includes(recipeSearch.trim().toLocaleLowerCase("es"))
   ), [recipes, isAdmin, recipeSearch]);
