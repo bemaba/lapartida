@@ -1,0 +1,84 @@
+name: Apply menus migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Confirma que quieres crear las tablas del módulo Menús"
+        required: true
+        type: choice
+        options:
+          - NO EJECUTAR
+          - APLICAR MIGRACIÓN DE MENÚS
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  apply-menus:
+    name: Apply the versioned menus migration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "APLICAR MIGRACIÓN DE MENÚS" ]; then
+            echo "Safety stop: no se ha elegido la confirmación exacta. No se ha cambiado nada."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing GitHub repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing GitHub repository secret SUPABASE_DB_PASSWORD" && exit 1)
+          supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify prerequisite migrations and menus migration is pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/20261013190000_create_menus.sql
+          supabase migration list --linked | tee /tmp/migrations.txt
+          for version in 20261012000000 20261013090000 20261013150000 20261013170000 20261013180000; do
+            grep -E "$version.*$version" /tmp/migrations.txt >/dev/null || {
+              echo "Safety stop: required migration $version is not registered as applied."
+              exit 1
+            }
+          done
+          awk -F'|' '$1 ~ /20261013190000/ && $2 !~ /20261013190000/ {pending=1} END {exit !pending}' /tmp/migrations.txt || {
+            echo "Safety stop: menus migration is not pending; review migration history before proceeding."
+            exit 1
+          }
+
+      - name: Apply pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --linked
+
+      - name: Verify menus migration is registered as applied
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261013190000.*20261013190000' /tmp/migrations-after.txt >/dev/null || {
+            echo "Verification failed: menus migration is not registered as applied."
+            exit 1
+          }
