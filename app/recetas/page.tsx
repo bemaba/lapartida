@@ -131,9 +131,9 @@ function wouldCreateCycle(parentId: string | null, candidateId: string, recipes:
 
 function PrintableRecipeSection({ recipe, quantityFactor = 1 }: { recipe: Recipe; quantityFactor?: number }) {
   return <section className="lp-recipe-print-section">
-    <div className="lp-card-title"><div><span className="lp-kicker">{recipe.recipe_type === "intermediate" ? "ELABORACIÓN INTERMEDIA" : "PLATO FINAL"}</span><h2>{recipe.title}</h2><p>{recipe.cuisine_type} · {recipe.category} · {recipe.recipe_type === "intermediate" ? `Rendimiento: ${recipe.yield_quantity ?? "—"} ${recipe.yield_unit || ""}` : `${recipe.servings} pax`}</p></div></div>
+    <div className="lp-card-title"><div><span className="lp-kicker">{recipe.recipe_type === "intermediate" ? "ELABORACIÓN INTERMEDIA" : "PLATO FINAL"}</span><h2>{recipe.title}</h2><p>{recipe.cuisine_type} · {recipe.category} · {recipe.recipe_type === "intermediate" ? `Rendimiento: ${recipe.yield_quantity == null ? "—" : new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 }).format(recipe.yield_quantity * quantityFactor)} ${recipe.yield_unit || ""}` : `${recipe.servings} pax`}</p></div></div>
     {recipe.description && <p>{recipe.description}</p>}
-    <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {recipe.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {recipe.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {recipe.difficulty}</span>{recipe.recipe_type === "intermediate" && <span><strong>Rendimiento:</strong> {recipe.yield_quantity ?? "—"} {recipe.yield_unit}</span>}</div>
+    <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {recipe.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {recipe.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {recipe.difficulty}</span>{recipe.recipe_type === "intermediate" && <span><strong>Rendimiento:</strong> {recipe.yield_quantity == null ? "—" : new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 }).format(recipe.yield_quantity * quantityFactor)} {recipe.yield_unit}</span>}</div>
     <h3>Ingredientes</h3>
     <ul className="lp-recipe-ingredient-detail">{(recipe.ingredients || []).map((item,index)=><li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity, quantityFactor) : "Cantidad al gusto"}</strong> {item.name}{item.note ? <span> — {item.note}</span> : null}</li>)}</ul>
     <h3>Elaboración</h3>
@@ -187,6 +187,7 @@ export default function RecipesPage() {
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [recipeHistory, setRecipeHistory] = useState<Recipe[]>([]);
   const [targetServings, setTargetServings] = useState(10);
+  const [targetYieldQuantity, setTargetYieldQuantity] = useState(1);
   const [form, setForm] = useState(initialForm);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -352,6 +353,7 @@ export default function RecipesPage() {
     if (!selected) return;
     setRecipeHistory(history => [...history, selected]);
     setTargetServings(recipe.servings);
+    setTargetYieldQuantity(recipe.yield_quantity || 1);
     setSelected(recipe);
   };
   const returnToPreviousRecipe = () => {
@@ -359,6 +361,7 @@ export default function RecipesPage() {
     if (!previous) return;
     setRecipeHistory(history => history.slice(0, -1));
     setTargetServings(previous.servings);
+    setTargetYieldQuantity(previous.yield_quantity || 1);
     setSelected(previous);
   };
 
@@ -594,7 +597,7 @@ export default function RecipesPage() {
                 <div className="lp-recipe-card-top"><span className="lp-recipe-category">{recipe.category}</span><span className={`lp-recipe-status ${recipe.status}`}>{recipe.status==="published"?"Publicada":recipe.status==="draft"?"Borrador":"Archivada"}</span></div>
                 <h3>{recipe.title}</h3><p>{recipe.description || "Sin descripción"}</p>
                 <div className="lp-recipe-meta"><span><Users size={14}/>{recipe.servings} pax</span><span><Clock3 size={14}/>{formatMinutes(recipe.prep_minutes,recipe.cook_minutes)}</span></div>
-                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setRecipeHistory([]);setTargetServings(recipe.servings);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
+                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setRecipeHistory([]);setTargetServings(recipe.servings);setTargetYieldQuantity(recipe.yield_quantity || 1);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
               </div>
             </article>)}</div>}
           {!loading && filteredRecipes.length > 0 && <div className="lp-recipe-pagination">
@@ -619,7 +622,7 @@ export default function RecipesPage() {
           {selected.photo_url && <div className="lp-recipe-detail-photo-wrap"><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><button type="button" className="lp-recipe-detail-photo-expand" onClick={e=>{e.stopPropagation();setExpandedPhoto(true)}} aria-label={`Ampliar fotografía de ${selected.title}`} title="Ampliar fotografía"><Maximize2 size={18}/></button></div>}
           <p>{selected.description || "Sin descripción."}</p>
           <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {selected.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {selected.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {selected.difficulty}</span>{selected.recipe_type === "intermediate" && <span><strong>Rendimiento:</strong> {selected.yield_quantity ?? "—"} {selected.yield_unit}</span>}</div>
-          <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=>{const linked=item.recipe_id?recipes.find(recipe=>recipe.id===item.recipe_id):null;return <li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}{linked&&<button type="button" className="lp-inline-recipe-link" onClick={()=>openLinkedRecipe(linked)}>Ver receta intermedia: {linked.title} ↗</button>}</li>;})}</ul>
+          <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3>{selected.recipe_type === "intermediate" ? <label>Cantidad a producir ({selected.yield_unit})<input type="number" min="0.001" step="any" value={targetYieldQuantity} onChange={e=>setTargetYieldQuantity(Math.max(0.001,Number(e.target.value)||0.001))}/></label> : <label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label>}</div><p className="lp-recipe-scale-note">{selected.recipe_type === "intermediate" ? `Cantidades ajustadas desde el rendimiento original de ${selected.yield_quantity ?? "—"} ${selected.yield_unit}.` : `Cantidades ajustadas desde la receta original de ${selected.servings} pax.`}</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=>{const linked=item.recipe_id?recipes.find(recipe=>recipe.id===item.recipe_id):null;return <li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}{linked&&<button type="button" className="lp-inline-recipe-link" onClick={()=>openLinkedRecipe(linked)}>Ver receta intermedia: {linked.title} ↗</button>}</li>;})}</ul>
           <h3>Elaboración</h3><ol className="lp-recipe-step-detail">{selected.steps?.map((step,index)=><li key={index}><p>{step.instruction}</p>{(step.minutes||step.temperature)&&<small>{step.minutes?step.minutes+" min":""}{step.minutes&&step.temperature?" · ":""}{step.temperature}</small>}</li>)}</ol>
           {selected.allergens?.length>0&&<><h3>Alérgenos declarados</h3><div className="lp-recipe-tags">{selected.allergens.map(item=><span key={item}>{item}</span>)}</div></>}
           {selected.dietary_tags?.length>0&&<><h3>Características</h3><div className="lp-recipe-tags">{selected.dietary_tags.map(item=><span key={item}>{item}</span>)}</div></>}
@@ -638,7 +641,7 @@ export default function RecipesPage() {
           <p className="lp-recipe-audit">Creada el {formatDate(selected.created_at)} · Actualizada el {formatDate(selected.updated_at)}</p>
         </section>
       </div>}
-      {selected && <div className="lp-recipe-print-bundle" aria-hidden="true"><PrintableRecipeSection recipe={selected} quantityFactor={selected.recipe_type === "intermediate" ? 1 : targetServings / Math.max(1, selected.servings)}/>{collectIntermediateRecipes(selected, recipes, selected.recipe_type === "intermediate" ? 1 : targetServings / Math.max(1, selected.servings)).map(item=><PrintableRecipeSection key={item.recipe.id} recipe={item.recipe} quantityFactor={item.quantityFactor}/>)}</div>}
+      {selected && <div className="lp-recipe-print-bundle" aria-hidden="true"><PrintableRecipeSection recipe={selected} quantityFactor={selected.recipe_type === "intermediate" ? targetYieldQuantity / Math.max(0.001, selected.yield_quantity || 1) : targetServings / Math.max(1, selected.servings)}/>{collectIntermediateRecipes(selected, recipes, selected.recipe_type === "intermediate" ? targetYieldQuantity / Math.max(0.001, selected.yield_quantity || 1) : targetServings / Math.max(1, selected.servings)).map(item=><PrintableRecipeSection key={item.recipe.id} recipe={item.recipe} quantityFactor={item.quantityFactor}/>)}</div>}
       {expandedPhoto && selected?.photo_url && <div className="lp-photo-lightbox" role="dialog" aria-modal="true" aria-label={`Fotografía ampliada de ${selected.title}`} onClick={e=>{if(e.target===e.currentTarget)setExpandedPhoto(false);}}><button type="button" className="lp-photo-lightbox-close" onClick={()=>setExpandedPhoto(false)} aria-label="Cerrar fotografía ampliada"><X size={22}/></button><img src={selected.photo_url} alt={selected.title} onClick={e=>e.stopPropagation()}/><span>Haz clic fuera de la imagen o pulsa × para cerrar</span></div>}
     </main>
   );
