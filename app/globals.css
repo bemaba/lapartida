@@ -54,3 +54,7 @@
 .lp-id{font-family:monospace;color:#818980}
 .lp-footer{text-align:center;color:#929a92;font-size:11px;padding:35px 0 10px}
 @media(max-width:640px){.lp-topbar{padding:0 16px}.lp-user>span{max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lp-content{padding:25px 15px}.lp-heading{align-items:flex-start;flex-direction:column}.lp-heading h1{font-size:25px}.lp-shift-card,.lp-login,.lp-config{padding:23px}.lp-stats{grid-template-columns:1fr}.lp-tabs{overflow:auto}.lp-tabs button{white-space:nowrap}.lp-card-title{align-items:flex-start;flex-wrap:wrap}}
+
+.lp-history-card{margin:22px auto 0;max-width:100%;padding:26px}
+.lp-history-card .lp-card-title h2{margin-top:6px}
+.lp-history-card .lp-table-wrap{margin-top:10px}
