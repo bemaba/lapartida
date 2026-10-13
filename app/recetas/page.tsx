@@ -1,11 +1,11 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
   ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Eye, Image as ImageIcon,
-  Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList
+  Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList, Upload
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
@@ -88,6 +88,7 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
@@ -119,6 +120,73 @@ export default function RecipesPage() {
   }, [expandedPhoto]);
 
   const isAdmin = profile?.role === "admin";
+
+  const importRecipesFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !supabase || !session || !isAdmin || !profile?.active) {
+      event.target.value = "";
+      return;
+    }
+    setImporting(true);
+    setNotice("");
+    let inserted = 0;
+    let skipped = 0;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!Array.isArray(parsed) || parsed.length > 500) {
+        throw new Error("El archivo debe contener una lista JSON de hasta 500 recetas.");
+      }
+      const { data: existingRows, error: existingError } = await supabase.from("recipes").select("title");
+      if (existingError) throw new Error("No se pudieron comprobar las recetas existentes: " + existingError.message);
+      const seen = new Set((existingRows || []).map(row => String(row.title || "").trim().toLocaleLowerCase("es")));
+      const payload = [];
+      for (const value of parsed) {
+        if (!value || typeof value !== "object" || typeof value.title !== "string" || !value.title.trim()) {
+          skipped++;
+          continue;
+        }
+        const title = value.title.trim();
+        const normalizedTitle = title.toLocaleLowerCase("es");
+        if (seen.has(normalizedTitle)) {
+          skipped++;
+          continue;
+        }
+        seen.add(normalizedTitle);
+        const ingredients = Array.isArray(value.ingredients) ? value.ingredients.filter((item: any) => item && typeof item.name === "string") : [];
+        const steps = Array.isArray(value.steps) ? value.steps.filter((item: any) => item && typeof item.instruction === "string") : [];
+        payload.push({
+          title: title.slice(0, 160),
+          description: typeof value.description === "string" ? value.description : "",
+          cuisine_type: typeof value.cuisine_type === "string" ? value.cuisine_type : "Otra",
+          category: typeof value.category === "string" ? value.category : "Otro",
+          tags: Array.isArray(value.tags) ? value.tags.filter((tag: unknown) => typeof tag === "string") : ["Importado"],
+          servings: Number.isInteger(value.servings) && value.servings > 0 && value.servings <= 100000 ? value.servings : 10,
+          prep_minutes: Number.isInteger(value.prep_minutes) && value.prep_minutes >= 0 ? value.prep_minutes : null,
+          cook_minutes: Number.isInteger(value.cook_minutes) && value.cook_minutes >= 0 ? value.cook_minutes : null,
+          difficulty: ["Fácil", "Media", "Alta"].includes(value.difficulty) ? value.difficulty : "Media",
+          ingredients,
+          steps,
+          allergens: Array.isArray(value.allergens) ? value.allergens.filter((item: unknown) => typeof item === "string") : [],
+          dietary_tags: Array.isArray(value.dietary_tags) ? value.dietary_tags.filter((item: unknown) => typeof item === "string") : [],
+          storage_notes: typeof value.storage_notes === "string" ? value.storage_notes : "",
+          status: "draft",
+          created_by: session.user.id
+        });
+      }
+      for (let i = 0; i < payload.length; i += 20) {
+        const { error } = await supabase.from("recipes").insert(payload.slice(i, i + 20));
+        if (error) throw new Error("Importación detenida tras " + inserted + " recetas: " + error.message);
+        inserted += payload.slice(i, i + 20).length;
+      }
+      setNotice("Importación terminada: " + inserted + " recetas creadas como borrador; " + skipped + " duplicados o filas no válidas omitidos.");
+      await loadRecipes();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "No se pudo importar el archivo JSON.");
+    } finally {
+      setImporting(false);
+      event.target.value = "";
+    }
+  };
 
   const loadRecipes = useCallback(async () => {
     if (!supabase || !session) return;
@@ -295,7 +363,13 @@ export default function RecipesPage() {
       <div className="lp-content">
         <div className="lp-heading">
           <div><div className="lp-kicker">RECETARIO COMPARTIDO</div><h1>Recetas</h1><p>Recetas del equipo, con ingredientes, elaboración y control de publicación.</p></div>
-          <button className="lp-button lp-primary" onClick={startNew}><Plus size={17}/> Nueva receta</button>
+          <div className="lp-recipe-heading-actions">
+            {isAdmin && <label className="lp-button lp-secondary lp-import-recipes-button">
+              <Upload size={16}/>{importing ? "Importando…" : "Importar JSON"}
+              <input type="file" accept=".json,application/json" disabled={importing} onChange={importRecipesFile} />
+            </label>}
+            <button className="lp-button lp-primary" onClick={startNew}><Plus size={17}/> Nueva receta</button>
+          </div>
         </div>
         {notice && <div className="lp-notice" role="status"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Cerrar aviso"><X size={16}/></button></div>}
 
