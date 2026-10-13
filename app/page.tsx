@@ -96,7 +96,7 @@ export default function Home() {
     setBusy(false);
   };
   const doLogout = async () => { if (supabase) await supabase.auth.signOut(); setNotice("Sesión cerrada."); };
-  const runAction = async (action: () => Promise<{ error: { message: string } | null }>, success: string) => {
+  const runAction = async (action: () => PromiseLike<{ error: { message: string } | null }>, success: string) => {
     setBusy(true); setNotice("");
     const result = await action();
     if (result.error) setNotice("No se ha podido completar la acción: " + result.error.message);
