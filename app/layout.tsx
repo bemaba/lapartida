@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "La Partida | Gestión de cocina",
-  description: "Portal modular para equipos de cocina: fichaje, recetas, eventos, turnos y stock.",
+  description: "Portal modular para equipos de cocina: fichaje, recetas, menús, eventos, turnos y stock.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
