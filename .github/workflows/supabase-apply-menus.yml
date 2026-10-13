@@ -1,15 +1,15 @@
-name: Apply menus and import source recipes
+name: Apply menus migration
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Confirma la creación del módulo Menús e importación de recetas"
+        description: "Confirma que quieres crear las tablas del módulo Menús"
         required: true
         type: choice
         options:
           - NO EJECUTAR
-          - APLICAR MENÚS E IMPORTAR RECETAS
+          - APLICAR MIGRACIÓN DE MENÚS
 
 permissions:
   contents: read
@@ -20,25 +20,20 @@ concurrency:
 
 jobs:
   apply-menus:
-    name: Apply menus schema and import recipes
+    name: Apply the versioned menus migration
     runs-on: ubuntu-latest
     steps:
       - name: Require explicit confirmation
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
-          if [ "$CONFIRM" != "APLICAR MENÚS E IMPORTAR RECETAS" ]; then
+          if [ "$CONFIRM" != "APLICAR MIGRACIÓN DE MENÚS" ]; then
             echo "Safety stop: no se ha elegido la confirmación exacta. No se ha cambiado nada."
             exit 1
           fi
 
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
@@ -54,116 +49,12 @@ jobs:
           test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing GitHub repository secret SUPABASE_DB_PASSWORD" && exit 1)
           supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Build the source-faithful recipe import migration
-        run: |
-          python - <<'PY'
-          import base64
-          import gzip
-          import json
-          from pathlib import Path
-
-          encoded = Path(".github/seed/menu-recipes.json.gz.b64").read_bytes()
-          records = json.loads(gzip.decompress(base64.b64decode(encoded)))
-          if len(records) != 145:
-              raise SystemExit(f"Safety stop: expected 145 source recipes, found {len(records)}.")
-
-          recipes = []
-          for item in records:
-              if item["d"]:
-                  description = (
-                      f"Transcripción fiel del documento «{item['s']}». "
-                      "Las cantidades se mantienen como en el original. "
-                      "Solo se incluyen pasos expresos; no se han inventado los que faltan. "
-                      "Revisar el rendimiento antes de escalar cantidades."
-                  )
-              else:
-                  description = (
-                      f"Receta mencionada en el menú «{item['s']}». "
-                      "El documento no detalla ingredientes ni pasos para este plato; "
-                      "no se han añadido datos por inferencia."
-                  )
-              recipes.append({
-                  "title": item["t"],
-                  "description": description,
-                  "cuisine_type": "Otra",
-                  "category": item["c"],
-                  "tags": ["Menús originales", "Importado"],
-                  "servings": item["v"],
-                  "difficulty": "Media",
-                  "ingredients": [
-                      {"name": ingredient[0], "quantity": ingredient[1], "note": ""}
-                      for ingredient in item["i"]
-                  ],
-                  "steps": [
-                      {"instruction": step[0], "minutes": step[1], "temperature": step[2]}
-                      for step in item["p"]
-                  ],
-                  "allergens": item["a"],
-                  "dietary_tags": [],
-                  "storage_notes": ""
-              })
-
-          payload = json.dumps(recipes, ensure_ascii=False, separators=(",", ":"))
-          if "$menu_seed$" in payload:
-              raise SystemExit("Safety stop: JSON contains the SQL delimiter.")
-          sql = """-- Recetas transcritas de los menús originales.
-          -- Borradores para revisión: no se inventan ingredientes ni pasos.
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM auth.users
-              WHERE lower(email) = lower('adminlapartida@gmail.com')
-            ) THEN
-              RAISE EXCEPTION 'No existe adminlapartida@gmail.com en Supabase Auth; no se han importado recetas.';
-            END IF;
-          END $$;
-
-          WITH admin_user AS (
-            SELECT id FROM auth.users
-            WHERE lower(email) = lower('adminlapartida@gmail.com')
-            LIMIT 1
-          ),
-          source_rows AS (
-            SELECT value AS recipe
-            FROM jsonb_array_elements($menu_seed$""" + payload + """$menu_seed$::jsonb)
-          )
-          INSERT INTO public.recipes (
-            title, description, cuisine_type, category, tags, servings, difficulty,
-            ingredients, steps, allergens, dietary_tags, storage_notes, status, created_by
-          )
-          SELECT
-            s.recipe->>'title',
-            s.recipe->>'description',
-            COALESCE(s.recipe->>'cuisine_type', 'Otra'),
-            COALESCE(s.recipe->>'category', 'Otro'),
-            ARRAY(SELECT jsonb_array_elements_text(COALESCE(s.recipe->'tags', '[]'::jsonb))),
-            GREATEST(1, LEAST(100000, COALESCE((s.recipe->>'servings')::integer, 10))),
-            COALESCE(s.recipe->>'difficulty', 'Media'),
-            COALESCE(s.recipe->'ingredients', '[]'::jsonb),
-            COALESCE(s.recipe->'steps', '[]'::jsonb),
-            ARRAY(SELECT jsonb_array_elements_text(COALESCE(s.recipe->'allergens', '[]'::jsonb))),
-            ARRAY(SELECT jsonb_array_elements_text(COALESCE(s.recipe->'dietary_tags', '[]'::jsonb))),
-            COALESCE(s.recipe->>'storage_notes', ''),
-            'draft',
-            a.id
-          FROM source_rows s
-          CROSS JOIN admin_user a
-          WHERE NOT EXISTS (
-            SELECT 1 FROM public.recipes r
-            WHERE lower(trim(r.title)) = lower(trim(s.recipe->>'title'))
-          );
-          """
-          Path("supabase/migrations/20261013200000_import_menu_recipes.sql").write_text(sql, encoding="utf-8")
-          print(f"Prepared import migration for {len(recipes)} recipes.")
-          PY
-
-      - name: Verify required migrations are applied and new migrations are pending
+      - name: Verify prerequisite migrations and menus migration is pending
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           test -f supabase/migrations/20261013190000_create_menus.sql
-          test -f supabase/migrations/20261013200000_import_menu_recipes.sql
           supabase migration list --linked | tee /tmp/migrations.txt
           for version in 20261012000000 20261013090000 20261013150000 20261013170000 20261013180000; do
             grep -E "$version.*$version" /tmp/migrations.txt >/dev/null || {
@@ -171,27 +62,23 @@ jobs:
               exit 1
             }
           done
-          for version in 20261013190000 20261013200000; do
-            awk -F'|' -v v="$version" '$1 ~ v && $2 !~ v {pending=1} END {exit !pending}' /tmp/migrations.txt || {
-              echo "Safety stop: migration $version is not pending; review migration history."
-              exit 1
-            }
-          done
+          awk -F'|' '$1 ~ /20261013190000/ && $2 !~ /20261013190000/ {pending=1} END {exit !pending}' /tmp/migrations.txt || {
+            echo "Safety stop: menus migration is not pending; review migration history before proceeding."
+            exit 1
+          }
 
       - name: Apply pending migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push --linked
 
-      - name: Verify menus and recipe import migrations
+      - name: Verify menus migration is registered as applied
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           supabase migration list --linked | tee /tmp/migrations-after.txt
-          for version in 20261013190000 20261013200000; do
-            grep -E "$version.*$version" /tmp/migrations-after.txt >/dev/null || {
-              echo "Verification failed: migration $version is not registered as applied."
-              exit 1
-            }
-          done
+          grep -E '20261013190000.*20261013190000' /tmp/migrations-after.txt >/dev/null || {
+            echo "Verification failed: menus migration is not registered as applied."
+            exit 1
+          }
