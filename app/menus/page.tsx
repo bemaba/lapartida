@@ -154,7 +154,7 @@ export default function MenusPage() {
 
   return (
     <main className="lp-page">
-      <header className="lp-topbar"><Link href="/" className="lp-brand"><span className="lp-brand-mark"><ChefHat size={21}/></span><span><strong>La Partida</strong><small>GESTIÓN DE COCINA</small></span></Link><div className="lp-user"><span>{profile.full_name}</span><span className="lp-user-role">{isAdmin ? "Administración" : "Equipo"}</span></div></header>
+      <header className="lp-topbar"><Link href="/" className="lp-brand"><span className="lp-logo small"><ChefHat size={20}/></span><span className="lp-brand-copy"><strong>La Partida</strong><small>GESTIÓN DE COCINA</small></span></Link><div className="lp-user"><span>{profile.full_name}</span><span className="lp-user-role">{isAdmin ? "Administración" : "Equipo"}</span></div></header>
       <ModuleNavigation activeModule="menus" />
       <div className="lp-content">
         <div className="lp-heading"><div><span className="lp-kicker">ORGANIZACIÓN DE COCINA</span><h1>Menús</h1><p>Crea propuestas combinando las recetas del recetario, sin duplicar fichas.</p></div>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear menú</button>}</div>
