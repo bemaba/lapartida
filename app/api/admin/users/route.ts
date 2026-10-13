@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName, role: "employee" },
-    redirectTo: (process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://lapartida.vercel.app")).replace(/\/$/, "") + "/",
+    redirectTo: (process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://lapartida.vercel.app")).replace(/\/$/, "") + "/change-password",
   });
 
   if (inviteError || !invited.user) {
