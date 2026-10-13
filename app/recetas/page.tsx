@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
   ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Eye, Image as ImageIcon,
-  Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList, Upload
+  Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList, Upload, Printer
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
@@ -467,6 +467,7 @@ export default function RecipesPage() {
           <div className="lp-recipe-detail-footer">
             <span className={`lp-recipe-status ${selected.status}`}>{selected.status==="published"?"Publicada":selected.status==="draft"?"Borrador pendiente de revisión":"Archivada"}</span>
             <div className="lp-recipe-actions">
+              <button type="button" className="lp-button lp-secondary lp-print-recipe" onClick={() => window.print()}><Printer size={15}/> Imprimir receta</button>
               {(isAdmin || (selected.created_by===session.user.id && selected.status==="draft"))&&<button className="lp-button lp-secondary" onClick={()=>startEdit(selected)}><Pencil size={15}/> Editar</button>}
               {isAdmin&&selected.status!=="published"&&<button className="lp-button lp-primary" onClick={()=>void adminUpdateStatus(selected,"published")}><CheckCircle2 size={15}/> Publicar</button>}
               {isAdmin&&selected.status!=="archived"&&<button className="lp-button lp-secondary" onClick={()=>void adminUpdateStatus(selected,"archived")}><Archive size={15}/> Archivar</button>}
