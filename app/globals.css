@@ -309,3 +309,5 @@
 .lp-entry-edit-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
 .lp-entry-edit-button{padding:7px 9px;font-size:11px;white-space:nowrap}
 @media(max-width:760px){.lp-entry-edit-form{grid-template-columns:1fr}.lp-entry-edit-actions{grid-column:auto;flex-wrap:wrap}.lp-entry-edit-actions .lp-button{flex:1}}
+
+.lp-brand{text-decoration:none;color:inherit}
