@@ -14,8 +14,8 @@ export default function AppHeader({ fullName, role, onLogout, onRefresh }: AppHe
   return (
     <header className="lp-topbar lp-app-header">
       <Link href="/" className="lp-brand lp-app-brand" aria-label="La Partida — ir al fichaje">
-        <span className="lp-logo small"><ChefHat size={20} /></span>
-        <span className="lp-app-brand-copy"><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></span>
+        <div className="lp-logo small"><ChefHat size={20} /></div>
+        <div className="lp-app-brand-copy"><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div>
       </Link>
       <div className="lp-user lp-app-header-user">
         <span className="lp-app-header-name" title={fullName}>{fullName}</span>
