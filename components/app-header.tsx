@@ -9,7 +9,7 @@ type AppHeaderProps = {
   onLogout: () => void;
 };
 
-export default function AppHeader({ fullName, role, onLogout, onRefresh }: AppHeaderProps) {
+export default function AppHeader({ fullName, role, onLogout }: AppHeaderProps) {
   return (
     <header className="lp-topbar lp-app-header">
       <Link href="/" className="lp-brand lp-app-brand" aria-label="La Partida — ir al fichaje">
