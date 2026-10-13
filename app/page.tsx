@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import Link from "next/link";
-import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck, KeyRound, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
+import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck, KeyRound, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet, Pencil, Save, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
@@ -22,7 +22,7 @@ function formatDate(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Madrid" }).format(new Date(value));
 }
-function formatTime(value: string | null) {
+function toDateTimeLocal(value: string) {\n  const date = new Date(value);\n  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);\n}\nfunction formatTime(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(value));
 }
@@ -70,7 +70,7 @@ export default function Home() {
   const [tab, setTab] = useState<"jornada" | "equipo" | "fichajes">("jornada");
   const [newEmployeeName, setNewEmployeeName] = useState("");
   const [newEmployeeEmail, setNewEmployeeEmail] = useState("");
-  const [creatingEmployee, setCreatingEmployee] = useState(false);
+  const [creatingEmployee, setCreatingEmployee] = useState(false);\n  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);\n  const [editClockIn, setEditClockIn] = useState("");\n  const [editClockOut, setEditClockOut] = useState("");\n  const [savingEntry, setSavingEntry] = useState(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -143,6 +143,44 @@ export default function Home() {
     setBusy(false);
   };
   const doLogout = async () => { if (supabase) await supabase.auth.signOut(); setNotice("Sesión cerrada."); };
+  const startEditEntry = (record: Entry) => {
+    if (!record.clock_out || profile?.role !== "admin") return;
+    setEditingEntry(record);
+    setEditClockIn(toDateTimeLocal(record.clock_in));
+    setEditClockOut(toDateTimeLocal(record.clock_out));
+    setNotice("");
+  };
+  const saveEntryEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingEntry || !session?.access_token || profile?.role !== "admin") return;
+    const clockIn = new Date(editClockIn);
+    const clockOut = new Date(editClockOut);
+    if (!editClockIn || !editClockOut || !Number.isFinite(clockIn.getTime()) || !Number.isFinite(clockOut.getTime()) || clockOut <= clockIn) {
+      setNotice("La salida debe ser posterior a la entrada.");
+      return;
+    }
+    setSavingEntry(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/time-entries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id: editingEntry.id, clock_in: clockIn.toISOString(), clock_out: clockOut.toISOString() }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setNotice(result.error || "No se ha podido corregir el fichaje.");
+      } else {
+        setNotice("Fichaje cerrado actualizado correctamente.");
+        setEditingEntry(null);
+        await refresh();
+      }
+    } catch {
+      setNotice("No se ha podido conectar con el servidor. Inténtalo de nuevo.");
+    } finally {
+      setSavingEntry(false);
+    }
+  };
   const createEmployee = async (event: FormEvent) => {
     event.preventDefault();
     if (!session?.access_token) return;
@@ -270,7 +308,9 @@ export default function Home() {
           <label>Correo electrónico<input required type="email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} placeholder="empleado@correo.com" /></label>
           <button className="lp-button lp-primary" disabled={creatingEmployee}>{creatingEmployee ? "Enviando…" : "Enviar invitación"}</button>
         </form>
-        <div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>{profiles.map(p => <tr key={p.user_id}><td>{p.full_name || "Sin nombre"}</td><td>{p.role === "admin" ? "Administradora" : "Empleado"}</td><td>{p.active ? "Activo" : "Desactivado"}</td><td className="lp-id">{p.user_id.slice(0, 8)}…</td></tr>)}</tbody></table></div><p className="lp-muted small-text">Las cuentas creadas aquí reciben el rol de empleado. La asignación de administradores se reserva para la administradora técnica.</p></section>}{tab === "fichajes" && <section className="lp-card"><div className="lp-card-title"><h2>Fichajes recientes</h2><button className="lp-button lp-secondary" onClick={exportCsv} disabled={!entries.length}><Download size={16}/> Exportar CSV</button></div><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody>{entries.map(e => <tr key={e.id}><td>{e.employee_name || e.user_id.slice(0, 8) + "…"}</td><td>{formatDate(e.clock_in)}</td><td>{formatDate(e.clock_out)}</td><td><span className={"lp-status " + (e.clock_out ? "off" : "on")}>{e.clock_out ? "Finalizado" : "Abierto"}</span></td></tr>)}</tbody></table>{!entries.length && <p className="lp-muted">Todavía no hay fichajes.</p>}</div></section>}</>}
+        <div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>{profiles.map(p => <tr key={p.user_id}><td>{p.full_name || "Sin nombre"}</td><td>{p.role === "admin" ? "Administradora" : "Empleado"}</td><td>{p.active ? "Activo" : "Desactivado"}</td><td className="lp-id">{p.user_id.slice(0, 8)}…</td></tr>)}</tbody></table></div><p className="lp-muted small-text">Las cuentas creadas aquí reciben el rol de empleado. La asignación de administradores se reserva para la administradora técnica.</p></section>}{tab === "fichajes" && <section className="lp-card"><div className="lp-card-title"><h2>Fichajes recientes</h2><button className="lp-button lp-secondary" onClick={exportCsv} disabled={!entries.length}><Download size={16}/> Exportar CSV</button></div>
+        {editingEntry && <form className="lp-entry-edit-form" onSubmit={saveEntryEdit}><div><span className="lp-kicker">CORREGIR FICHAJE CERRADO</span><h3>{editingEntry.employee_name || "Empleado"} · {formatDate(editingEntry.clock_in)}</h3><p className="lp-muted small-text">Solo las administradoras pueden modificar jornadas finalizadas. La duración se recalculará automáticamente.</p></div><label>Entrada<input required type="datetime-local" value={editClockIn} onChange={e=>setEditClockIn(e.target.value)}/></label><label>Salida<input required type="datetime-local" value={editClockOut} onChange={e=>setEditClockOut(e.target.value)}/></label><div className="lp-entry-edit-actions"><button type="button" className="lp-button lp-secondary" onClick={()=>setEditingEntry(null)} disabled={savingEntry}><X size={15}/> Cancelar</button><button type="submit" className="lp-button lp-primary" disabled={savingEntry}><Save size={15}/>{savingEntry?"Guardando…":"Guardar cambios"}</button></div></form>}
+        <div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{entries.map(e => <tr key={e.id}><td>{e.employee_name || e.user_id.slice(0, 8) + "…"}</td><td>{formatDate(e.clock_in)}</td><td>{formatDate(e.clock_out)}</td><td><span className={"lp-status " + (e.clock_out ? "off" : "on")}>{e.clock_out ? "Finalizado" : "Abierto"}</span></td><td>{e.clock_out ? <button type="button" className="lp-button lp-secondary lp-entry-edit-button" onClick={()=>startEditEntry(e)}><Pencil size={14}/> Editar</button> : <span className="lp-muted small-text">En curso</span>}</td></tr>)}</tbody></table>{!entries.length && <p className="lp-muted">Todavía no hay fichajes.</p>}</div></section>}</>}
       <footer className="lp-footer">La Partida - Gestión de Cocina</footer>
     </div>
   </main>;
