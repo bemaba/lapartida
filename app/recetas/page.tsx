@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
   ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Image as ImageIcon,
-  Pencil, Trash2, CheckCircle2, Archive, X, Save, Eye, SlidersHorizontal, ClipboardList, Upload
+  Pencil, Trash2, CheckCircle2, Archive, X, Save, Eye, SlidersHorizontal, ClipboardList
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
