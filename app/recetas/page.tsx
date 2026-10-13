@@ -94,7 +94,7 @@ export default function RecipesPage() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("available");
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(9);
   const [currentPage, setCurrentPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
@@ -470,7 +470,7 @@ export default function RecipesPage() {
             <div className="lp-recipe-pagination-controls">
               <label>Por página
                 <select aria-label="Recetas por página" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-                  <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
+                  <option value={9}>9</option><option value={18}>18</option><option value={27}>27</option><option value={36}>36</option><option value={45}>45</option><option value={90}>90</option>
                 </select>
               </label>
               <button type="button" className="lp-button lp-secondary lp-page-button" onClick={() => setCurrentPage(page => Math.max(1, page - 1))} disabled={currentPage <= 1} aria-label="Página anterior">‹ Anterior</button>
