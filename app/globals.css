@@ -129,6 +129,7 @@
 .lp-recipe-section-title>span{margin-left:auto;font-size:11px;color:#7b867c}
 .lp-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .lp-recipe-grid label,.lp-ingredient-row label,.lp-step-fields label{display:grid;gap:7px;min-width:0;font-size:12px;font-weight:650;color:#566259}
+.lp-recipe-photo-upload{display:grid;gap:10px;min-width:0}.lp-recipe-photo-upload-preview{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.lp-recipe-photo-upload-preview img{width:180px;height:120px;object-fit:cover;border:1px solid #e0e6df;border-radius:10px;background:#f0f3ef}.lp-recipe-photo-upload>p{margin:0}
 .lp-recipe-grid label.wide{grid-column:1/-1}
 .lp-recipe-grid input,.lp-recipe-grid select,.lp-recipe-grid textarea,.lp-ingredient-row input,.lp-step-fields textarea,.lp-step-fields input{width:100%;min-width:0;padding:10px 11px;border:1px solid #dfe5dd;border-radius:9px;background:#fff;color:#28342b;font:inherit;font-size:12px}
 .lp-recipe-grid textarea,.lp-step-fields textarea{resize:vertical;line-height:1.5}
