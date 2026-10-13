@@ -12,7 +12,7 @@ type AppHeaderProps = {
 export default function AppHeader({ fullName, role, onLogout }: AppHeaderProps) {
   return (
     <header className="lp-topbar lp-app-header">
-      <Link href="/" className="lp-brand lp-app-brand" aria-label="La Partida — ir al fichaje">
+      <Link href="/menus" className="lp-brand lp-app-brand" aria-label="La Partida — ir a menús">
         <div className="lp-logo small"><ChefHat size={20} /></div>
         <div className="lp-app-brand-copy"><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div>
       </Link>
