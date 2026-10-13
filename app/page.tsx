@@ -205,7 +205,6 @@ export default function Home() {
     const minutes = Math.max(0, Math.round(grossMinutes - pauseMinutes));
     return String(Math.floor(minutes / 60)) + " h " + String(minutes % 60).padStart(2, "0") + " min";
   };
-  const workingCount = useMemo(() => entries.filter(e => !e.clock_out).length, [entries]);
   const weekBounds = useMemo(() => getWeekBounds(weekOffset), [weekOffset]);
   const weekLabel = useMemo(() => {
     const start = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(weekBounds.start);
