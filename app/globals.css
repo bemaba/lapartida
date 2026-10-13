@@ -340,3 +340,6 @@
  .lp-app-header .lp-user-role{display:none}
  .lp-app-header .lp-app-header-user{gap:5px}
 }
+
+.lp-module-nav-mobile-title{text-decoration:none;cursor:pointer}
+.lp-module-nav-mobile-title:hover{text-decoration:none}
