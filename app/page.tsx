@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import Link from "next/link";
-import { ChefHat, Clock3, Play, Pause, Square, Users, Download, ShieldCheck, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet, Pencil, Save, X } from "lucide-react";
+import { ChefHat, Clock3, Play, Pause, Square, Users, Download, ShieldCheck, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet, Pencil, Save, X, RefreshCw } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
