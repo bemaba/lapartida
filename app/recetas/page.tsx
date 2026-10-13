@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
-  ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Image as ImageIcon,
+  ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Eye, Image as ImageIcon,
   Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
