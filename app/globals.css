@@ -413,3 +413,11 @@
   .lp-recipe-card h3{font-size:13px}
   .lp-recipe-card-footer>.lp-button{font-size:9px}
 }
+
+/* Recipe type separation */
+.lp-recipe-type-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:5px;border:1px solid #e4e9e2;border-radius:12px;background:#f8faf7}
+.lp-recipe-type-tabs button{display:flex;align-items:center;justify-content:center;gap:9px;flex:1;min-height:42px;padding:9px 14px;border:1px solid transparent;border-radius:8px;background:transparent;color:#667168;font:700 12px Manrope,sans-serif;cursor:pointer}
+.lp-recipe-type-tabs button span{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:12px;background:#e9eee8;color:#526454;font-size:10px}
+.lp-recipe-type-tabs button.active{border-color:#d9e4d8;background:#fff;color:#28583a;box-shadow:0 2px 8px rgba(35,65,42,.06)}
+.lp-recipe-type-tabs button.active span{background:#e6f1e7;color:#28583a}
+@media(max-width:540px){.lp-recipe-type-tabs{display:grid;grid-template-columns:1fr}.lp-recipe-type-tabs button{justify-content:space-between}}
