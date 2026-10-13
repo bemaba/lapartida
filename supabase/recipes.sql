@@ -1,5 +1,5 @@
 -- La Partida: módulo de recetas
--- Ejecutar una sola vez en Supabase > SQL Editor.
+-- Copia SQL de referencia. Para cambios versionados, usar migrations/ y Supabase CLI.
 
 create table if not exists public.recipes (
   id uuid primary key default gen_random_uuid(),
