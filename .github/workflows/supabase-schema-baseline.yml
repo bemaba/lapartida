@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: supabase-schema-baseline-review
@@ -12,7 +13,7 @@ concurrency:
 
 jobs:
   snapshot:
-    name: Export current public schema for review
+    name: Export current schema and open review PR
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -32,18 +33,39 @@ jobs:
           test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing SUPABASE_DB_PASSWORD" && exit 1)
           supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Export current schema (read-only)
+      - name: Export current schema as a baseline migration (read-only)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase db dump --linked --schema public --file remote_schema_baseline.sql
-          printf '\n-- BASELINE ONLY: this file describes the pre-existing remote schema.\n-- Do not apply it to the existing project with db push.\n-- Review and register its version as already applied before applying later migrations.\n' >> remote_schema_baseline.sql
+          mkdir -p supabase/migrations
+          supabase db dump --linked --schema public --file supabase/migrations/20261012000000_remote_schema_baseline.sql
+          printf '\n-- BASELINE ONLY: describes the schema that already exists remotely.\n-- NEVER execute this migration against the existing project with db push.\n-- After review/merge, register version 20261012000000 as already applied with migration repair.\n' >> supabase/migrations/20261012000000_remote_schema_baseline.sql
 
       - name: Upload schema snapshot
         uses: actions/upload-artifact@v4
         with:
           name: supabase-public-schema-baseline
-          path: remote_schema_baseline.sql
+          path: supabase/migrations/20261012000000_remote_schema_baseline.sql
           if-no-files-found: error
           retention-days: 7
+
+      - name: Create pull request for review
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/supabase-schema-baseline
+          delete-branch: true
+          title: "chore(db): add existing Supabase schema baseline"
+          commit-message: "chore(db): add existing Supabase schema baseline"
+          body: |
+            ## Purpose
+            Capture the existing Supabase public schema in version control as a baseline.
+
+            ## Important safety notes
+            - This file represents schema that already exists in the remote project.
+            - Do not apply it to the current project with `supabase db push`.
+            - Review the SQL carefully, including functions, policies, and dependencies.
+            - After merge, register version `20261012000000` as already applied before applying the pending recipes migration.
+            - This snapshot covers the `public` schema; the auth.users trigger and other non-public objects must be checked separately.
+          add-paths: |
+            supabase/migrations/20261012000000_remote_schema_baseline.sql
