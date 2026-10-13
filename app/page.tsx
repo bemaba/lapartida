@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import Link from "next/link";
-import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck, KeyRound } from "lucide-react";
+import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck, KeyRound, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
@@ -26,6 +26,30 @@ function formatTime(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(value));
 }
+function getWeekBounds(offset: number) {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - day + offset * 7);
+  const nextMonday = new Date(monday);
+  nextMonday.setDate(nextMonday.getDate() + 7);
+  return { start: monday, end: nextMonday };
+}
+function dateKey(value: Date) {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+function calculateEntryMinutes(record: Entry, now = Date.now()) {
+  const end = record.clock_out ? new Date(record.clock_out).getTime() : now;
+  const gross = Math.max(0, (end - new Date(record.clock_in).getTime()) / 60000);
+  const pause = (record.breaks || []).reduce((total, item) => {
+    const pauseEnd = item.ended_at ? new Date(item.ended_at).getTime() : (record.clock_out ? new Date(record.clock_out).getTime() : now);
+    return total + Math.max(0, (pauseEnd - new Date(item.started_at).getTime()) / 60000);
+  }, 0);
+  return Math.max(0, Math.round(gross - pause));
+}
+function formatMinutes(minutes: number) {
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")} min`;
+}
 
 export default function Home() {
   const supabase = getSupabase();
@@ -39,6 +63,8 @@ export default function Home() {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [activeBreak, setActiveBreak] = useState<BreakRow | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [weeklyEntries, setWeeklyEntries] = useState<Entry[]>([]);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [employeeHistory, setEmployeeHistory] = useState<Entry[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [tab, setTab] = useState<"jornada" | "equipo" | "fichajes">("jornada");
@@ -70,20 +96,20 @@ export default function Home() {
     setProfile(p as Profile | null);
     if (!p) { setNotice("Tu usuario no tiene perfil. Comprueba que se haya creado en Supabase."); return; }
     if (p.role === "admin") {
-      const [peopleResult, entriesResult] = await Promise.all([
+      const bounds = getWeekBounds(weekOffset);
+      const [peopleResult, entriesResult, weeklyResult] = await Promise.all([
         supabase.from("profiles").select("user_id,full_name,role,active").order("full_name"),
-        supabase.from("time_entries").select("id,user_id,clock_in,clock_out").order("clock_in", { ascending: false }).limit(200)
+        supabase.from("time_entries").select("id,user_id,clock_in,clock_out").order("clock_in", { ascending: false }).limit(200),
+        supabase.from("time_entries").select("id,user_id,clock_in,clock_out,breaks(id,time_entry_id,started_at,ended_at)")
+          .gte("clock_in", bounds.start.toISOString()).lt("clock_in", bounds.end.toISOString()).order("clock_in", { ascending: true })
       ]);
       if (peopleResult.error) setNotice("No se pudo cargar el equipo: " + peopleResult.error.message);
       else setProfiles((peopleResult.data || []) as Profile[]);
+      const namesByUserId = new Map((peopleResult.data || []).map((person: any) => [person.user_id, person.full_name]));
       if (entriesResult.error) setNotice("No se pudieron cargar los fichajes: " + entriesResult.error.message);
-      else {
-        const namesByUserId = new Map((peopleResult.data || []).map((person: any) => [person.user_id, person.full_name]));
-        setEntries((entriesResult.data || []).map((record: any) => ({
-          ...record,
-          employee_name: namesByUserId.get(record.user_id) || ""
-        })) as Entry[]);
-      }
+      else setEntries((entriesResult.data || []).map((record: any) => ({ ...record, employee_name: namesByUserId.get(record.user_id) || "" })) as Entry[]);
+      if (weeklyResult.error) setNotice("No se pudo cargar el resumen semanal: " + weeklyResult.error.message);
+      else setWeeklyEntries((weeklyResult.data || []).map((record: any) => ({ ...record, employee_name: namesByUserId.get(record.user_id) || "" })) as Entry[]);
     }
     const { data: historyData, error: historyError } = await supabase
       .from("time_entries")
@@ -104,9 +130,9 @@ export default function Home() {
       if (breakError) setNotice("No se pudo consultar la pausa: " + breakError.message);
       setActiveBreak(openPause as BreakRow | null);
     } else setActiveBreak(null);
-  }, [supabase, session]);
+  }, [supabase, session, weekOffset]);
 
-  useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setEmployeeHistory([]); setProfiles([]); } }, [session, refresh]);
+  useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setWeeklyEntries([]); setEmployeeHistory([]); setProfiles([]); } }, [session, refresh]);
 
   const doLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -180,6 +206,33 @@ export default function Home() {
     return String(Math.floor(minutes / 60)) + " h " + String(minutes % 60).padStart(2, "0") + " min";
   };
   const workingCount = useMemo(() => entries.filter(e => !e.clock_out).length, [entries]);
+  const weekBounds = useMemo(() => getWeekBounds(weekOffset), [weekOffset]);
+  const weekLabel = useMemo(() => {
+    const start = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(weekBounds.start);
+    const end = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" }).format(new Date(weekBounds.end.getTime() - 1));
+    return `${start} – ${end}`;
+  }, [weekBounds]);
+  const weeklyEmployeeCount = useMemo(() => new Set(weeklyEntries.map(item => item.user_id)).size, [weeklyEntries]);
+  const weeklyMinutes = useMemo(() => weeklyEntries.reduce((total, item) => total + calculateEntryMinutes(item), 0), [weeklyEntries]);
+  const completedWeekCount = useMemo(() => weeklyEntries.filter(item => item.clock_out).length, [weeklyEntries]);
+  const openWeekCount = useMemo(() => weeklyEntries.filter(item => !item.clock_out).length, [weeklyEntries]);
+  const weeklyByEmployee = useMemo(() => {
+    const grouped = new Map<string, { userId: string; name: string; shifts: number; minutes: number; open: number }>();
+    weeklyEntries.forEach(item => {
+      const current = grouped.get(item.user_id) || { userId: item.user_id, name: item.employee_name || "Empleado sin nombre", shifts: 0, minutes: 0, open: 0 };
+      current.shifts += 1;
+      current.minutes += calculateEntryMinutes(item);
+      if (!item.clock_out) current.open += 1;
+      grouped.set(item.user_id, current);
+    });
+    return Array.from(grouped.values()).sort((a, b) => b.minutes - a.minutes);
+  }, [weeklyEntries]);
+  const exportWeeklyCsv = () => {
+    const rows = [["Empleado", "Jornadas", "Horas netas", "Jornadas abiertas"], ...weeklyByEmployee.map(person => [person.name, String(person.shifts), formatMinutes(person.minutes), String(person.open)])];
+    const csv = rows.map(row => row.map(value => `"${value.replaceAll("\"", "\"\"")}"`).join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a"); a.href = url; a.download = `la-partida-resumen-semanal-${dateKey(weekBounds.start)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
 
   if (!supabase) return <main className="lp-center"><section className="lp-card lp-config"><div className="lp-logo"><ChefHat size={25}/></div><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p><p className="lp-muted">Añade la URL del proyecto y la clave pública en las variables de entorno de Vercel y vuelve a desplegar.</p></section></main>;
   if (loading) return <main className="lp-center"><div className="lp-card"><ChefHat/><p>Cargando La Partida…</p></div></main>;
@@ -192,7 +245,26 @@ export default function Home() {
       {notice && <div className="lp-notice" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
       {!profile?.active && <div className="lp-notice">Tu cuenta está desactivada. Contacta con la administradora.</div>}
       {profile?.active && profile.role === "employee" && <><section className="lp-card lp-shift-card"><div className="lp-card-title"><div><span className="lp-kicker">ESTADO ACTUAL</span><h2>{!entry ? "No hay ninguna jornada abierta" : activeBreak ? "Estás en pausa" : "Jornada en curso"}</h2></div><span className={"lp-status " + (!entry ? "off" : activeBreak ? "break" : "on")}>{!entry ? "Fuera de jornada" : activeBreak ? "En pausa" : "Trabajando"}</span></div>{entry && <p className="lp-time-line">Entrada de esta jornada: <strong>{formatTime(entry.clock_in)}</strong></p>}<div className="lp-actions">{!entry ? <button className="lp-button lp-primary" onClick={clockIn} disabled={busy}><Play size={17}/> Fichar entrada</button> : <>{!activeBreak ? <button className="lp-button lp-secondary" onClick={startBreak} disabled={busy}><Pause size={17}/> Iniciar pausa</button> : <button className="lp-button lp-secondary" onClick={endBreak} disabled={busy}><Play size={17}/> Terminar pausa</button>}<button className="lp-button lp-danger" onClick={clockOut} disabled={busy}><Square size={15}/> Fichar salida</button></>}</div><p className="lp-muted small-text">Las horas se muestran en horario peninsular. Comprueba siempre que el registro sea correcto.</p></section><section className="lp-card lp-history-card"><div className="lp-card-title"><div><span className="lp-kicker">TUS REGISTROS</span><h2>Histórico de jornadas</h2></div><button className="lp-icon-button" onClick={() => void refresh()} title="Actualizar histórico"><RefreshCw size={16}/></button></div><p className="lp-muted small-text">Tus últimas 30 jornadas, ordenadas de la más reciente a la más antigua.</p><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Duración</th><th>Pausas</th></tr></thead><tbody>{employeeHistory.map(h => <tr key={h.id}><td>{new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeZone: "Europe/Madrid" }).format(new Date(h.clock_in))}</td><td>{formatTime(h.clock_in)}</td><td>{formatTime(h.clock_out)}</td><td>{formatDuration(h.clock_in, h.clock_out, h.breaks || [])}</td><td>{(h.breaks || []).length}</td></tr>)}</tbody></table>{!employeeHistory.length && <p className="lp-muted">Todavía no tienes jornadas registradas.</p>}</div></section></>}
-      {profile?.role === "admin" && <><nav className="lp-tabs"><button className={tab === "jornada" ? "active" : ""} onClick={() => setTab("jornada")}><Clock3 size={16}/> Resumen</button><button className={tab === "equipo" ? "active" : ""} onClick={() => setTab("equipo")}><Users size={16}/> Equipo ({profiles.length})</button><button className={tab === "fichajes" ? "active" : ""} onClick={() => setTab("fichajes")}><Clock3 size={16}/> Fichajes</button></nav>{tab === "jornada" && <div className="lp-stats"><section className="lp-card"><span className="lp-muted">Empleados activos</span><strong>{profiles.filter(p => p.active && p.role === "employee").length}</strong></section><section className="lp-card"><span className="lp-muted">Jornadas abiertas</span><strong>{workingCount}</strong></section><section className="lp-card"><span className="lp-muted">Registros consultados</span><strong>{entries.length}</strong></section></div>}{tab === "equipo" && <section className="lp-card"><div className="lp-card-title"><h2>Equipo</h2></div>
+      {profile?.role === "admin" && <><nav className="lp-tabs"><button className={tab === "jornada" ? "active" : ""} onClick={() => setTab("jornada")}><Clock3 size={16}/> Resumen</button><button className={tab === "equipo" ? "active" : ""} onClick={() => setTab("equipo")}><Users size={16}/> Equipo ({profiles.length})</button><button className={tab === "fichajes" ? "active" : ""} onClick={() => setTab("fichajes")}><Clock3 size={16}/> Fichajes</button></nav>{tab === "jornada" && <div className="lp-weekly-dashboard">
+        <section className="lp-card lp-week-picker">
+          <div><span className="lp-kicker">ACTIVIDAD DEL EQUIPO</span><h2>Resumen semanal</h2><p className="lp-muted small-text">Horas netas, descontando las pausas registradas.</p></div>
+          <div className="lp-week-controls">
+            <button className="lp-icon-button" onClick={() => setWeekOffset(value => value - 1)} title="Semana anterior" aria-label="Semana anterior"><ChevronLeft size={18}/></button>
+            <div className="lp-week-label"><CalendarDays size={17}/><strong>{weekLabel}</strong>{weekOffset === 0 && <span>Esta semana</span>}</div>
+            <button className="lp-icon-button" onClick={() => setWeekOffset(value => Math.min(0, value + 1))} title="Semana siguiente" aria-label="Semana siguiente" disabled={weekOffset === 0}><ChevronRight size={18}/></button>
+          </div>
+        </section>
+        <div className="lp-week-stats">
+          <section className="lp-card lp-week-stat"><span className="lp-week-stat-icon"><Users size={18}/></span><span className="lp-muted">Empleados con actividad</span><strong>{weeklyEmployeeCount}</strong><small>De {profiles.filter(person => person.active && person.role === "employee").length} empleados activos</small></section>
+          <section className="lp-card lp-week-stat"><span className="lp-week-stat-icon"><Clock3 size={18}/></span><span className="lp-muted">Horas trabajadas</span><strong>{formatMinutes(weeklyMinutes)}</strong><small>Tiempo neto registrado</small></section>
+          <section className="lp-card lp-week-stat"><span className="lp-week-stat-icon"><CheckCircle2 size={18}/></span><span className="lp-muted">Jornadas completadas</span><strong>{completedWeekCount}</strong><small>Con salida registrada</small></section>
+          <section className="lp-card lp-week-stat"><span className="lp-week-stat-icon"><AlertCircle size={18}/></span><span className="lp-muted">Jornadas pendientes</span><strong>{openWeekCount}</strong><small>Sin salida registrada</small></section>
+        </div>
+        <section className="lp-card lp-week-employee-card">
+          <div className="lp-card-title"><div><span className="lp-kicker">DETALLE POR PERSONA</span><h2>Actividad del equipo</h2></div><button className="lp-button lp-secondary" onClick={exportWeeklyCsv} disabled={!weeklyByEmployee.length}><FileSpreadsheet size={16}/> Exportar semana</button></div>
+          <div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Empleado</th><th>Jornadas</th><th>Horas netas</th><th>Estado</th></tr></thead><tbody>{weeklyByEmployee.map(person => <tr key={person.userId}><td>{person.name}</td><td>{person.shifts}</td><td>{formatMinutes(person.minutes)}</td><td>{person.open ? <span className="lp-status on">{person.open} abierta(s)</span> : <span className="lp-status off">Completadas</span>}</td></tr>)}</tbody></table>{!weeklyByEmployee.length && <div className="lp-week-empty"><CalendarDays size={24}/><strong>Sin actividad esta semana</strong><span>No hay fichajes en el periodo seleccionado.</span></div>}</div>
+        </section>
+      </div>}{tab === "equipo" && <section className="lp-card"><div className="lp-card-title"><h2>Equipo</h2></div>
         <form className="lp-create-user" onSubmit={createEmployee}>
           <div><span className="lp-kicker">NUEVA INCORPORACIÓN</span><h3>Añadir empleado</h3><p className="lp-muted small-text">Enviaremos una invitación para que configure su propia contraseña.</p></div>
           <label>Nombre y apellidos<input required minLength={2} maxLength={120} value={newEmployeeName} onChange={e => setNewEmployeeName(e.target.value)} placeholder="Nombre del empleado" /></label>
