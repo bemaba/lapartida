@@ -100,7 +100,7 @@ La limpieza de usuarios y datos de prueba es una tarea separada de las migracion
 El workflow **Cleanup test users and timekeeping data** está preparado para conservar únicamente estas dos cuentas:
 
 - `adminlapartida@gmail.com` — perfil **Administrador Técnico**, rol técnico `admin`.
-- `pauchulirodriguezsanz@gmail.com` — perfil **Jefa de Cocina**, rol de aplicación `employee`.
+- `pauchulirodriguezsanz@gmail.com` — perfil **Jefa de Cocina**, también con rol de aplicación `admin`.
 
 La limpieza elimina las demás cuentas de autenticación y sus perfiles, todos los fichajes, pausas, turnos y registros de auditoría. Conserva las tablas, funciones, políticas y permisos. También conserva las recetas existentes, reasignando al administrador la autoría de las que pertenecían a cuentas que se eliminarán. Las imágenes de Storage no se eliminan con esta operación.
 
