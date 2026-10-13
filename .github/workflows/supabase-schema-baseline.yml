@@ -34,6 +34,9 @@ jobs:
           supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
 
       - name: Export current schema (read-only)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           test ! -e supabase/migrations/20261012000000_remote_schema_baseline.sql || (echo "Baseline file already exists; refusing to overwrite it." && exit 1)
           supabase db dump --linked --schema public --file supabase/migrations/20261012000000_remote_schema_baseline.sql
