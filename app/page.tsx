@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck } from "lucide-react";
+import ModuleNavigation from "@/components/module-navigation";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
 type Entry = { id: string; user_id: string; clock_in: string; clock_out: string | null; employee_name?: string; breaks?: BreakRow[] | null };
@@ -159,6 +160,7 @@ export default function Home() {
 
   return <main className="lp-app">
     <header className="lp-topbar"><div className="lp-brand"><div className="lp-logo small"><ChefHat size={20}/></div><div><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div></div><div className="lp-user"><span>{profile?.full_name || session.user.email}</span><button className="lp-icon-button" onClick={() => void refresh()} title="Actualizar"><RefreshCw size={16}/></button><button className="lp-icon-button" onClick={() => void doLogout()} title="Cerrar sesión"><LogOut size={16}/></button></div></header>
+    <ModuleNavigation activeModule="fichaje" />
     <div className="lp-content"><div className="lp-heading"><div><div className="lp-kicker">ESPACIO DE TRABAJO</div><h1>{profile?.role === "admin" ? "Panel de administración" : "Mi jornada"}</h1><p>{profile?.role === "admin" ? "Consulta los fichajes y el estado del equipo." : "Registra tu entrada, tus pausas y tu salida."}</p></div><span className="lp-role"><ShieldCheck size={15}/>{profile?.role === "admin" ? "Administradora" : "Empleado"}</span></div>
       {notice && <div className="lp-notice" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
       {!profile?.active && <div className="lp-notice">Tu cuenta está desactivada. Contacta con la administradora.</div>}
