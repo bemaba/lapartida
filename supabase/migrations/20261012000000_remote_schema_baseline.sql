@@ -595,6 +595,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 
+-- Recreate the auth.users trigger that provisions a profile for each new user.
+-- The public-only dump does not include triggers attached to auth.users.
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- BASELINE ONLY: describes the schema that already exists remotely.
 -- NEVER execute this migration against the existing project with db push.
--- After review/merge, register version 20261012000000 as already applied with migration repair.
+-- After review, register version 20261012000000 as already applied with migration repair.
