@@ -1,73 +1,150 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChefHat, LayoutDashboard, CalendarDays, Clock3, Users, Download, CircleHelp, Bell, ChevronLeft, ChevronRight, Search, MoreHorizontal, Play, Pause, Square, Plus, ArrowUpRight, CircleAlert, CheckCircle2 } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
+import { ChefHat, Clock3, LogOut, Play, Pause, Square, Users, RefreshCw, Download, ShieldCheck } from "lucide-react";
 
-type Employee = { id: number; name: string; role: string; initials: string; color: string; planned: string; actual: string; status: "working" | "break" | "off"; start: string; end: string; pause: string; };
-const initialEmployees: Employee[] = [
-  { id: 1, name: "María García", role: "Cocinera", initials: "MG", color: "peach", planned: "08:00–16:00", actual: "08:02–", status: "working", start: "08:02", end: "—", pause: "0 min" },
-  { id: 2, name: "Carlos Ruiz", role: "Ayudante de cocina", initials: "CR", color: "blue", planned: "08:00–16:00", actual: "07:56–", status: "break", start: "07:56", end: "—", pause: "18 min" },
-  { id: 3, name: "Lucía Martín", role: "Cocinera", initials: "LM", color: "lilac", planned: "09:00–17:00", actual: "09:04–", status: "working", start: "09:04", end: "—", pause: "0 min" },
-  { id: 4, name: "Javier López", role: "Preparación", initials: "JL", color: "mint", planned: "10:00–18:00", actual: "—", status: "off", start: "—", end: "—", pause: "—" },
-  { id: 5, name: "Ana Torres", role: "Cocinera", initials: "AT", color: "yellow", planned: "12:00–20:00", actual: "—", status: "off", start: "—", end: "—", pause: "—" },
-];
-const week = [
-  { day: "LUN", date: "12", total: "31 h 48 min", shifts: 5 },
-  { day: "MAR", date: "13", total: "24 h 12 min", shifts: 5 },
-  { day: "MIÉ", date: "14", total: "—", shifts: 4 },
-  { day: "JUE", date: "15", total: "—", shifts: 5 },
-  { day: "VIE", date: "16", total: "—", shifts: 5 },
-  { day: "SÁB", date: "17", total: "—", shifts: 3 },
-  { day: "DOM", date: "18", total: "—", shifts: 0 },
-];
+type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
+type Entry = { id: string; user_id: string; clock_in: string; clock_out: string | null; profiles?: { full_name: string } | null };
+type BreakRow = { id: string; time_entry_id: string; started_at: string; ended_at: string | null };
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let client: SupabaseClient | null = null;
+function getSupabase() {
+  if (!supabaseUrl || !supabaseKey) return null;
+  if (!client) client = createClient(supabaseUrl, supabaseKey);
+  return client;
+}
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Madrid" }).format(new Date(value));
+}
+function formatTime(value: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(value));
+}
 
 export default function Home() {
-  const [employees, setEmployees] = useState(initialEmployees);
-  const [tab, setTab] = useState("Resumen");
-  const [query, setQuery] = useState("");
-  const [selectedDay, setSelectedDay] = useState("13");
-  const [notice, setNotice] = useState("Vista de demostración: los fichajes no se guardan todavía.");
-  const filtered = useMemo(() => employees.filter(e => e.name.toLowerCase().includes(query.toLowerCase())), [employees, query]);
-  const updateStatus = (id: number, status: Employee["status"]) => {
-    setEmployees(prev => prev.map(e => e.id === id ? { ...e, status, start: status === "working" && e.start === "—" ? new Date().toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"}) : e.start } : e));
-    setNotice("Demostración actualizada. Estos cambios solo viven en esta sesión.");
+  const supabase = getSupabase();
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [entry, setEntry] = useState<Entry | null>(null);
+  const [activeBreak, setActiveBreak] = useState<BreakRow | null>(null);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [tab, setTab] = useState<"jornada" | "equipo" | "fichajes">("jornada");
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return; }
+    let alive = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!alive) return;
+      if (error) setNotice(error.message);
+      setSession(data.session);
+      setLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setLoading(false);
+    });
+    return () => { alive = false; listener.subscription.unsubscribe(); };
+  }, [supabase]);
+
+  const refresh = useCallback(async () => {
+    if (!supabase || !session?.user) return;
+    const { data: p, error: profileError } = await supabase
+      .from("profiles").select("user_id,full_name,role,active").eq("user_id", session.user.id).maybeSingle();
+    if (profileError) { setNotice("No se pudo cargar el perfil: " + profileError.message); return; }
+    setProfile(p as Profile | null);
+    if (!p) { setNotice("Tu usuario no tiene perfil. Comprueba que se haya creado en Supabase."); return; }
+    if (p.role === "admin") {
+      const [peopleResult, entriesResult] = await Promise.all([
+        supabase.from("profiles").select("user_id,full_name,role,active").order("full_name"),
+        supabase.from("time_entries").select("id,user_id,clock_in,clock_out,profiles(full_name)").order("clock_in", { ascending: false }).limit(200)
+      ]);
+      if (peopleResult.error) setNotice("No se pudo cargar el equipo: " + peopleResult.error.message);
+      else setProfiles((peopleResult.data || []) as Profile[]);
+      if (entriesResult.error) setNotice("No se pudieron cargar los fichajes: " + entriesResult.error.message);
+      else setEntries((entriesResult.data || []) as Entry[]);
+    }
+    const { data: openEntry, error: entryError } = await supabase.from("time_entries")
+      .select("id,user_id,clock_in,clock_out").eq("user_id", session.user.id).is("clock_out", null).maybeSingle();
+    if (entryError) { setNotice("No se pudo consultar tu jornada: " + entryError.message); return; }
+    setEntry(openEntry as Entry | null);
+    if (openEntry) {
+      const { data: openPause, error: breakError } = await supabase.from("breaks")
+        .select("id,time_entry_id,started_at,ended_at").eq("time_entry_id", openEntry.id).is("ended_at", null).maybeSingle();
+      if (breakError) setNotice("No se pudo consultar la pausa: " + breakError.message);
+      setActiveBreak(openPause as BreakRow | null);
+    } else setActiveBreak(null);
+  }, [supabase, session]);
+
+  useEffect(() => { if (session) void refresh(); else { setProfile(null); setEntry(null); setActiveBreak(null); setEntries([]); setProfiles([]); } }, [session, refresh]);
+
+  const doLogin = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setBusy(true); setNotice("");
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) setNotice("No se ha podido iniciar sesión. Revisa el correo y la contraseña.");
+    setBusy(false);
+  };
+  const doLogout = async () => { if (supabase) await supabase.auth.signOut(); setNotice("Sesión cerrada."); };
+  const runAction = async (action: () => Promise<{ error: { message: string } | null }>, success: string) => {
+    setBusy(true); setNotice("");
+    const result = await action();
+    if (result.error) setNotice("No se ha podido completar la acción: " + result.error.message);
+    else { setNotice(success); await refresh(); }
+    setBusy(false);
+  };
+  const clockIn = () => {
+    if (!supabase || !session) return;
+    void runAction(() => supabase.from("time_entries").insert({ user_id: session.user.id }), "Entrada registrada correctamente.");
+  };
+  const clockOut = () => {
+    if (!supabase || !entry) return;
+    void runAction(async () => {
+      if (activeBreak) {
+        const closed = await supabase.from("breaks").update({ ended_at: new Date().toISOString() }).eq("id", activeBreak.id);
+        if (closed.error) return closed;
+      }
+      return supabase.from("time_entries").update({ clock_out: new Date().toISOString() }).eq("id", entry.id);
+    }, "Salida registrada correctamente.");
+  };
+  const startBreak = () => {
+    if (!supabase || !entry) return;
+    void runAction(() => supabase.from("breaks").insert({ time_entry_id: entry.id }), "Pausa iniciada.");
+  };
+  const endBreak = () => {
+    if (!supabase || !activeBreak) return;
+    void runAction(() => supabase.from("breaks").update({ ended_at: new Date().toISOString() }).eq("id", activeBreak.id), "Pausa finalizada.");
   };
   const exportCsv = () => {
-    const rows = [["Empleado","Puesto","Turno previsto","Estado","Entrada","Salida","Pausa"], ...employees.map(e => [e.name,e.role,e.planned,e.status,e.start,e.end,e.pause])];
-    const csv = rows.map(r => r.map(v => '"' + v.replaceAll('"','""') + '"').join(";")).join("\n");
-    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], {type:"text/csv;charset=utf-8;"}));
-    const a = document.createElement("a"); a.href = url; a.download = "la-partida-demo.csv"; a.click(); URL.revokeObjectURL(url);
-    setNotice("CSV de demostración descargado.");
+    const rows = [["Empleado", "Entrada", "Salida"], ...entries.map(e => [e.profiles?.full_name || e.user_id, formatDate(e.clock_in), formatDate(e.clock_out)])];
+    const csv = rows.map(row => row.map(v => '"' + v.replaceAll('"', '""') + '"').join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a"); a.href = url; a.download = "la-partida-fichajes.csv"; a.click(); URL.revokeObjectURL(url);
   };
-  return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><div className="brand-mark"><ChefHat size={23}/></div><div><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div></div>
-        <div className="workspace-label">ESPACIO DE TRABAJO</div>
-        <div className="workspace"><div className="workspace-avatar">LP</div><div><strong>Equipo de cocina</strong><span>Planificación y horarios</span></div><MoreHorizontal size={18}/></div>
-        <div className="nav-label">MENÚ PRINCIPAL</div>
-        <nav>
-          {[["Resumen",LayoutDashboard],["Calendario",CalendarDays],["Fichajes",Clock3],["Equipo",Users]].map(([label, Icon]: any) => <button key={label} className={tab === label ? "nav-item active" : "nav-item"} onClick={() => setTab(label)}><Icon size={18}/><span>{label}</span>{label === "Fichajes" && <i className="nav-dot"/>}</button>)}
-        </nav>
-        <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={18}/></div><strong>¿Necesitas ayuda?</strong><p>Organiza el día sin perder detalle.</p><button onClick={() => setNotice("Ayuda: esta es una demo con datos ficticios.")}>Ver guía rápida <ArrowUpRight size={14}/></button></div><div className="profile"><div className="avatar profile-avatar">P</div><div><strong>Pau · Administradora</strong><span>Vista de demostración</span></div><MoreHorizontal size={18}/></div></div>
-      </aside>
-      <section className="main-area">
-        <header className="topbar"><div className="breadcrumb">Equipo de cocina <span>/</span> <strong>{tab}</strong></div><div className="top-actions"><span className="today-chip"><span className="green-dot"/> Martes, 13 oct 2026</span><button className="icon-button" aria-label="Notificaciones" onClick={() => setNotice("No hay notificaciones nuevas en esta demo.")}><Bell size={18}/></button><div className="avatar top-avatar">P</div></div></header>
-        <div className="content">
-          <div className="page-heading"><div><div className="eyebrow">MARTES · 13 OCTUBRE 2026</div><h1>{tab === "Resumen" ? "Buenos días, Pau" : tab}</h1><p>{tab === "Resumen" ? "Aquí tienes el pulso de tu equipo para hoy." : "Vista previa de planificación y registro horario."}</p></div><button className="button primary" onClick={() => setNotice("La creación de turnos estará disponible en la siguiente fase.")}><Plus size={17}/> Nuevo turno</button></div>
-          <div className="notice"><CircleAlert size={16}/><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Cerrar aviso">×</button></div>
-          <div className="stats-grid">
-            <div className="stat-card"><div className="stat-top"><span>Horas registradas hoy</span><span className="stat-icon green"><Clock3 size={18}/></span></div><div className="stat-value">15 h 02 min</div><div className="stat-foot"><span className="trend">+2,4%</span> frente a ayer <span className="tiny-dot"/></div><div className="progress"><span style={{width:"64%"}}/></div><div className="progress-caption"><span>15 h 02 min registradas</span><span>24 h previstas</span></div></div>
-            <div className="stat-card"><div className="stat-top"><span>Personas trabajando</span><span className="stat-icon blue"><Users size={18}/></span></div><div className="stat-value">{employees.filter(e => e.status === "working" || e.status === "break").length}<small> / 5</small></div><div className="stat-foot">Ahora mismo <span className="live-dot"/> <strong>En directo (demo)</strong></div><div className="people-stack"><span className="avatar peach">M</span><span className="avatar blue">C</span><span className="avatar lilac">L</span><span className="stack-more">+2</span><span className="stack-label">en el equipo</span></div></div>
-            <div className="stat-card"><div className="stat-top"><span>Turnos por revisar</span><span className="stat-icon amber"><CircleAlert size={18}/></span></div><div className="stat-value">2</div><div className="stat-foot"><span className="amber-text">1 fichaje abierto</span> · 1 pausa activa</div><div className="review-link" onClick={() => setTab("Fichajes")}>Revisar fichajes <ArrowUpRight size={15}/></div></div>
-          </div>
-          <div className="section-head"><div><h2>Control de hoy</h2><p>Comprueba el estado del equipo de un vistazo.</p></div><div className="table-actions"><label className="search-box"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar empleado..."/></label><button className="button secondary" onClick={exportCsv}><Download size={16}/> Exportar CSV</button></div></div>
-          <div className="table-card"><div className="table-scroll"><table><thead><tr><th>EMPLEADO</th><th>TURNO PREVISTO</th><th>FICHAJE REAL</th><th>PAUSA</th><th>ESTADO</th><th>ACCIONES (DEMO)</th></tr></thead><tbody>{filtered.map(e => <tr key={e.id}><td><div className="employee-cell"><div className={"avatar " + e.color}>{e.initials}</div><div><strong>{e.name}</strong><span>{e.role}</span></div></div></td><td><span className="shift-time">{e.planned}</span></td><td><span className="actual-time">{e.actual}</span></td><td>{e.pause}</td><td><span className={"status-pill " + e.status}><span/>{e.status === "working" ? "Trabajando" : e.status === "break" ? "En pausa" : "Sin fichar"}</span></td><td><div className="row-actions">{e.status === "off" ? <button className="action-button start" title="Simular entrada" onClick={() => updateStatus(e.id,"working")}><Play size={14}/> Entrar</button> : e.status === "working" ? <><button className="action-button" title="Simular pausa" onClick={() => updateStatus(e.id,"break")}><Pause size={14}/></button><button className="action-button stop" title="Simular salida" onClick={() => updateStatus(e.id,"off")}><Square size={13}/></button></> : <><button className="action-button start" title="Reanudar" onClick={() => updateStatus(e.id,"working")}><Play size={14}/></button><button className="action-button stop" title="Finalizar jornada" onClick={() => updateStatus(e.id,"off")}><Square size={13}/></button></>}</div></td></tr>)}</tbody></table>{filtered.length === 0 && <div className="empty-state">No hay empleados con ese nombre.</div>}</div><div className="table-footer"><span>Mostrando {filtered.length} de {employees.length} empleados de ejemplo</span><button onClick={() => setTab("Equipo")}>Ver equipo completo <ArrowUpRight size={14}/></button></div></div>
-          <div className="bottom-grid"><div className="panel calendar-panel"><div className="panel-heading"><div><h2>Esta semana</h2><p>12 – 18 octubre 2026</p></div><div className="calendar-controls"><button aria-label="Semana anterior" onClick={() => setNotice("La navegación de semanas se habilitará con el calendario real.")}><ChevronLeft size={16}/></button><button aria-label="Semana siguiente" onClick={() => setNotice("La navegación de semanas se habilitará con el calendario real.")}><ChevronRight size={16}/></button></div></div><div className="week-grid">{week.map(d => <button key={d.date} className={"day-card " + (selectedDay === d.date ? "selected" : "")} onClick={() => setSelectedDay(d.date)}><span>{d.day}</span><strong>{d.date}</strong><i className={d.shifts ? "day-indicator" : "day-indicator empty"}/><small>{d.total}</small></button>)}</div><div className="calendar-foot"><span><i className="legend-dot"/> Turnos previstos</span><span><i className="legend-dot actual-legend"/> Horas fichadas (demo)</span></div></div>
-            <div className="panel activity-panel"><div className="panel-heading"><div><h2>Actividad reciente</h2><p>Últimos movimientos (ejemplo)</p></div><button className="text-link" onClick={() => setTab("Fichajes")}>Ver todos</button></div><div className="activity-list"><div className="activity-row"><div className="activity-icon green"><Play size={15}/></div><div><strong>María García ha fichado</strong><span>Entrada · Hoy, 08:02</span></div><time>08:02</time></div><div className="activity-row"><div className="activity-icon amber"><Pause size={15}/></div><div><strong>Carlos Ruiz está en pausa</strong><span>Pausa iniciada · Hoy, 11:40</span></div><time>11:40</time></div><div className="activity-row"><div className="activity-icon blue"><CheckCircle2 size={15}/></div><div><strong>Turno de Lucía iniciado</strong><span>Entrada · Hoy, 09:04</span></div><time>09:04</time></div></div></div></div>
-          <footer>La Partida <span>·</span> MVP de demostración <span>·</span> Datos ficticios, no usar para registro laboral real.</footer>
-        </div>
-      </section>
-    </main>
-  );
+  const workingCount = useMemo(() => entries.filter(e => !e.clock_out).length, [entries]);
+
+  if (!supabase) return <main className="lp-center"><section className="lp-card lp-config"><div className="lp-logo"><ChefHat size={25}/></div><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p><p className="lp-muted">Añade la URL del proyecto y la clave pública en las variables de entorno de Vercel y vuelve a desplegar.</p></section></main>;
+  if (loading) return <main className="lp-center"><div className="lp-card"><ChefHat/><p>Cargando La Partida…</p></div></main>;
+  if (!session) return <main className="lp-center"><section className="lp-card lp-login"><div className="lp-logo"><ChefHat size={26}/></div><div className="lp-kicker">CONTROL HORARIO DE COCINA</div><h1>La Partida</h1><p className="lp-muted">Inicia sesión para fichar o gestionar el equipo.</p><form onSubmit={doLogin} className="lp-form"><label>Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@correo.com"/></label><label>Contraseña<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Tu contraseña"/></label><button className="lp-button lp-primary" disabled={busy}>{busy ? "Entrando…" : "Iniciar sesión"}</button></form>{notice && <p className="lp-notice">{notice}</p>}<p className="lp-footnote">Acceso privado · Zona horaria Europe/Madrid</p></section></main>;
+
+  return <main className="lp-app">
+    <header className="lp-topbar"><div className="lp-brand"><div className="lp-logo small"><ChefHat size={20}/></div><div><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div></div><div className="lp-user"><span>{profile?.full_name || session.user.email}</span><button className="lp-icon-button" onClick={() => void refresh()} title="Actualizar"><RefreshCw size={16}/></button><button className="lp-icon-button" onClick={() => void doLogout()} title="Cerrar sesión"><LogOut size={16}/></button></div></header>
+    <div className="lp-content"><div className="lp-heading"><div><div className="lp-kicker">ESPACIO DE TRABAJO</div><h1>{profile?.role === "admin" ? "Panel de administración" : "Mi jornada"}</h1><p>{profile?.role === "admin" ? "Consulta los fichajes y el estado del equipo." : "Registra tu entrada, tus pausas y tu salida."}</p></div><span className="lp-role"><ShieldCheck size={15}/>{profile?.role === "admin" ? "Administradora" : "Empleado"}</span></div>
+      {notice && <div className="lp-notice" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
+      {!profile?.active && <div className="lp-notice">Tu cuenta está desactivada. Contacta con la administradora.</div>}
+      {profile?.active && profile.role === "employee" && <section className="lp-card lp-shift-card"><div className="lp-card-title"><div><span className="lp-kicker">ESTADO ACTUAL</span><h2>{!entry ? "Todavía no has fichado" : activeBreak ? "Estás en pausa" : "Jornada en curso"}</h2></div><span className={"lp-status " + (!entry ? "off" : activeBreak ? "break" : "on")}>{!entry ? "Sin fichar" : activeBreak ? "En pausa" : "Trabajando"}</span></div>{entry && <p className="lp-time-line">Entrada de hoy: <strong>{formatTime(entry.clock_in)}</strong></p>}<div className="lp-actions">{!entry ? <button className="lp-button lp-primary" onClick={clockIn} disabled={busy}><Play size={17}/> Fichar entrada</button> : <>{!activeBreak ? <button className="lp-button lp-secondary" onClick={startBreak} disabled={busy}><Pause size={17}/> Iniciar pausa</button> : <button className="lp-button lp-secondary" onClick={endBreak} disabled={busy}><Play size={17}/> Terminar pausa</button>}<button className="lp-button lp-danger" onClick={clockOut} disabled={busy}><Square size={15}/> Fichar salida</button></>}</div><p className="lp-muted small-text">Las horas se muestran en horario peninsular. Comprueba siempre que el registro sea correcto.</p></section>}
+      {profile?.role === "admin" && <><nav className="lp-tabs"><button className={tab === "jornada" ? "active" : ""} onClick={() => setTab("jornada")}><Clock3 size={16}/> Resumen</button><button className={tab === "equipo" ? "active" : ""} onClick={() => setTab("equipo")}><Users size={16}/> Equipo ({profiles.length})</button><button className={tab === "fichajes" ? "active" : ""} onClick={() => setTab("fichajes")}><Clock3 size={16}/> Fichajes</button></nav>{tab === "jornada" && <div className="lp-stats"><section className="lp-card"><span className="lp-muted">Empleados activos</span><strong>{profiles.filter(p => p.active && p.role === "employee").length}</strong></section><section className="lp-card"><span className="lp-muted">Jornadas abiertas</span><strong>{workingCount}</strong></section><section className="lp-card"><span className="lp-muted">Registros consultados</span><strong>{entries.length}</strong></section></div>}{tab === "equipo" && <section className="lp-card"><h2>Equipo</h2><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>{profiles.map(p => <tr key={p.user_id}><td>{p.full_name || "Sin nombre"}</td><td>{p.role === "admin" ? "Administradora" : "Empleado"}</td><td>{p.active ? "Activo" : "Desactivado"}</td><td className="lp-id">{p.user_id.slice(0, 8)}…</td></tr>)}</tbody></table></div><p className="lp-muted small-text">Para crear usuarios nuevos, usa Authentication → Users en Supabase. Después podremos añadir una pantalla de gestión segura.</p></section>}{tab === "fichajes" && <section className="lp-card"><div className="lp-card-title"><h2>Fichajes recientes</h2><button className="lp-button lp-secondary" onClick={exportCsv} disabled={!entries.length}><Download size={16}/> Exportar CSV</button></div><div className="lp-table-wrap"><table className="lp-table"><thead><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead><tbody>{entries.map(e => <tr key={e.id}><td>{e.profiles?.full_name || e.user_id.slice(0, 8) + "…"}</td><td>{formatDate(e.clock_in)}</td><td>{formatDate(e.clock_out)}</td><td><span className={"lp-status " + (e.clock_out ? "off" : "on")}>{e.clock_out ? "Finalizado" : "Abierto"}</span></td></tr>)}</tbody></table>{!entries.length && <p className="lp-muted">Todavía no hay fichajes.</p>}</div></section>}</>}
+      <footer className="lp-footer">La Partida · Primera versión conectada · Revisa los registros antes de usarlos oficialmente.</footer>
+    </div>
+  </main>;
 }
