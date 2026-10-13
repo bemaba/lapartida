@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
   ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Image as ImageIcon,
-  Pencil, Trash2, CheckCircle2, Archive, X, Save, Eye, SlidersHorizontal, ClipboardList
+  Pencil, Trash2, CheckCircle2, Archive, X, Save, Eye, SlidersHorizontal, ClipboardList, Upload
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
@@ -96,6 +96,16 @@ export default function RecipesPage() {
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [targetServings, setTargetServings] = useState(10);
   const [form, setForm] = useState(initialForm);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+
+  useEffect(() => {
+    if (!photoFile) { setPhotoPreview(null); return; }
+    const previewUrl = URL.createObjectURL(photoFile);
+    setPhotoPreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [photoFile]);
 
   const isAdmin = profile?.role === "admin";
 
@@ -150,12 +160,12 @@ export default function RecipesPage() {
   }), [recipes, query, categoryFilter, statusFilter]);
 
   const startNew = () => {
-    setEditing(null); setForm(initialForm()); setFormOpen(true); setSelected(null); setNotice("");
+    setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
   };
   const startEdit = (recipe: Recipe) => {
-    setEditing(recipe); setForm(toForm(recipe)); setFormOpen(true); setSelected(null); setNotice("");
+    setEditing(recipe); setForm(toForm(recipe)); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
   };
-  const closeForm = () => { setFormOpen(false); setEditing(null); setForm(initialForm()); };
+  const closeForm = () => { setFormOpen(false); setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); };
 
   const saveRecipe = async (event: FormEvent) => {
     event.preventDefault();
@@ -169,10 +179,32 @@ export default function RecipesPage() {
       return;
     }
     setSaving(true); setNotice("");
+    let photoUrl = removePhoto ? null : form.photo_url.trim() || null;
+    if (photoFile) {
+      const extensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+      const extension = extensions[photoFile.type];
+      if (!extension || photoFile.size > 5 * 1024 * 1024) {
+        setNotice("La foto debe ser JPG, PNG o WebP y ocupar como máximo 5 MB.");
+        setSaving(false);
+        return;
+      }
+      const storagePath = `${session.user.id}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("recipe-photos").upload(storagePath, photoFile, {
+        contentType: photoFile.type,
+        cacheControl: "3600",
+        upsert: false
+      });
+      if (uploadError) {
+        setNotice("No se pudo subir la fotografía: " + uploadError.message);
+        setSaving(false);
+        return;
+      }
+      photoUrl = supabase.storage.from("recipe-photos").getPublicUrl(storagePath).data.publicUrl;
+    }
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
-      photo_url: form.photo_url.trim() || null,
+      photo_url: photoUrl,
       cuisine_type: form.cuisine_type,
       category: form.category,
       tags: form.tagsText.split(",").map(tag => tag.trim()).filter(Boolean),
@@ -259,7 +291,19 @@ export default function RecipesPage() {
               <label>Dificultad<select value={form.difficulty} onChange={e => setForm({...form,difficulty:e.target.value as "Fácil"|"Media"|"Alta"})}><option>Fácil</option><option>Media</option><option>Alta</option></select></label>
               <label>Preparación (min)<input type="number" min="0" value={form.prep_minutes} onChange={e => setForm({...form,prep_minutes:e.target.value})} placeholder="Ej. 20"/></label>
               <label>Cocción (min)<input type="number" min="0" value={form.cook_minutes} onChange={e => setForm({...form,cook_minutes:e.target.value})} placeholder="Ej. 45"/></label>
-              <label className="wide">URL de foto (opcional)<input type="url" value={form.photo_url} onChange={e => setForm({...form,photo_url:e.target.value})} placeholder="https://..."/></label>
+              <div className="wide lp-recipe-photo-upload"><label>Fotografía de la receta (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                  setNotice("Elige una imagen JPG, PNG o WebP de máximo 5 MB.");
+                  e.target.value = "";
+                  return;
+                }
+                setNotice(""); setPhotoFile(file); setRemovePhoto(false); setForm(current => ({...current, photo_url: ""}));
+              }}/></label>
+                {(photoPreview || (!removePhoto && form.photo_url)) && <div className="lp-recipe-photo-upload-preview"><img src={photoPreview || form.photo_url} alt="Vista previa de la receta"/><button type="button" className="lp-button lp-secondary" onClick={() => {setPhotoFile(null);setForm(current=>({...current,photo_url:""}));setRemovePhoto(true);}}>Quitar fotografía</button></div>}
+                <p className="lp-muted small-text">Sube una imagen JPG, PNG o WebP (máximo 5 MB). No necesitas pegar ningún enlace.</p>
+              </div>
               <label className="wide">Etiquetas (separadas por comas)<input value={form.tagsText} onChange={e => setForm({...form,tagsText:e.target.value})} placeholder="temporada, menú degustación, evento"/></label>
             </div>
 
