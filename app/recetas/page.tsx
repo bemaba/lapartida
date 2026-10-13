@@ -4,10 +4,11 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } fro
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
-  ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Eye, Image as ImageIcon,
+  BookOpen, ChefHat, Clock3, Plus, Search, Users, Eye, Image as ImageIcon,
   Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList, Upload, Printer
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
+import AppHeader from "@/components/app-header";
 
 type Ingredient = { name: string; quantity: string; note: string };
 type RecipeStep = { instruction: string; minutes: string; temperature: string };
@@ -355,10 +356,7 @@ export default function RecipesPage() {
 
   return (
     <main className="lp-app">
-      <header className="lp-topbar">
-        <div className="lp-brand"><div className="lp-logo small"><ChefHat size={20}/></div><div><strong>La Partida</strong><span>GESTIÓN DE COCINA</span></div></div>
-        <div className="lp-user"><span>{profile?.full_name || session.user.email}</span><Link className="lp-icon-button" href="/" title="Volver al fichaje" aria-label="Volver al fichaje"><ArrowLeft size={16}/></Link></div>
-      </header>
+      <AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => void supabase?.auth.signOut()} />
       <ModuleNavigation activeModule="recetas" />
       <div className="lp-content">
         <div className="lp-heading">
