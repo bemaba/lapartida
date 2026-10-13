@@ -1,4 +1,4 @@
-name: Supabase migrations
+name: Supabase migration preflight
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   migrate:
-    name: Apply reviewed database migrations
+    name: Inspect remote migration history
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -33,8 +33,5 @@ jobs:
           test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing GitHub secret SUPABASE_DB_PASSWORD" && exit 1)
           supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Apply pending migrations
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
+      - name: List remote and local migrations (read-only)
+        run: supabase migration list --linked
