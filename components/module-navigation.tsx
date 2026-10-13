@@ -19,7 +19,6 @@ type ModuleNavigationProps = {
 export default function ModuleNavigation({ activeModule = "fichaje" }: ModuleNavigationProps) {
   return (
     <nav className="lp-module-nav" aria-label="Módulos de La Partida">
-      <div className="lp-module-nav-label">MÓDULOS</div>
       {appModules.map((module) => {
         const Icon = icons[module.icon];
         const active = module.id === activeModule;
@@ -37,7 +36,6 @@ export default function ModuleNavigation({ activeModule = "fichaje" }: ModuleNav
         }
         return <Link key={module.id} href={href} className={`lp-module-item ${active ? "active" : ""}`} title={module.description} aria-current={active ? "page" : undefined}>{contents}</Link>;
       })}
-      <p className="lp-module-hint">Iremos activando nuevos módulos sin cambiar el sistema de fichaje.</p>
     </nav>
   );
 }
