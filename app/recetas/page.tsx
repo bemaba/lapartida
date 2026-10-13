@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
 import {
   ArrowLeft, BookOpen, ChefHat, Clock3, Plus, Search, Users, Image as ImageIcon,
-  Pencil, Trash2, CheckCircle2, Archive, X, Save, Eye, SlidersHorizontal, ClipboardList
+  Pencil, Trash2, CheckCircle2, Archive, X, Save, Maximize2, SlidersHorizontal, ClipboardList
 } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 
@@ -108,6 +108,15 @@ export default function RecipesPage() {
     setPhotoPreview(previewUrl);
     return () => URL.revokeObjectURL(previewUrl);
   }, [photoFile]);
+
+  useEffect(() => {
+    if (!expandedPhoto) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpandedPhoto(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [expandedPhoto]);
 
   const isAdmin = profile?.role === "admin";
 
@@ -372,7 +381,7 @@ export default function RecipesPage() {
       {selected && <div className="lp-recipe-overlay" role="presentation" onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
         <section className="lp-card lp-recipe-detail" role="dialog" aria-modal="true" aria-labelledby="recipe-detail-title">
           <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2 id="recipe-detail-title">{selected.title}</h2><p className="lp-muted small-text">{selected.cuisine_type} · {selected.category} · {selected.servings} pax</p></div><button className="lp-icon-button" onClick={()=>setSelected(null)} aria-label="Cerrar receta"><X size={17}/></button></div>
-          {selected.photo_url && <button type="button" className="lp-recipe-detail-photo-button" onClick={()=>setExpandedPhoto(true)} aria-label={`Ampliar fotografía de ${selected.title}`}><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><span><Eye size={14}/> Ver fotografía en grande</span></button>}
+          {selected.photo_url && <div className="lp-recipe-detail-photo-wrap"><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><button type="button" className="lp-recipe-detail-photo-expand" onClick={e=>{e.stopPropagation();setExpandedPhoto(true)}} aria-label={`Ampliar fotografía de ${selected.title}`} title="Ampliar fotografía"><Maximize2 size={18}/></button></div>}
           <p>{selected.description || "Sin descripción."}</p>
           <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {selected.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {selected.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {selected.difficulty}</span></div>
           <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=><li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}</li>)}</ul>
