@@ -1,10 +1,10 @@
 # La Partida
 
-App web para gestionar fichajes, pausas y turnos de un equipo de cocina.
+Portal web modular para operaciones de cocina, construido con Next.js, TypeScript y Supabase.
 
-MVP inicial en Next.js + TypeScript. En esta fase utiliza datos ficticios; todavía no incluye autenticación real ni base de datos y no debe usarse para registrar jornadas reales.
+## Desarrollo local (opcional)
 
-## Desarrollo local
+La ejecución local sirve para desarrollar la aplicación, pero no es necesaria para gestionar la base de datos de producción.
 
 ```bash
 npm install
@@ -13,20 +13,31 @@ npm run dev
 
 ## Configuración
 
-Consulta `.env.example` para las variables de entorno previstas para la integración futura con Supabase. No subas secretos ni datos reales de empleados al repositorio.
+Consulta `.env.example` para las variables de entorno de la aplicación. Nunca subas contraseñas, tokens ni claves secretas al repositorio.
 
+## Base de datos como código
 
-## Base de datos como código (Supabase)
+Las migraciones SQL se versionan en `supabase/migrations/`. La base de datos de producción se gestiona desde GitHub Actions; no es necesario instalar Supabase CLI en el ordenador para el flujo habitual.
 
-Las migraciones versionadas se guardan en `supabase/migrations/`. No edites la base de datos de producción directamente sin crear una migración correspondiente.
+### Configurar los secretos de GitHub
 
-### Preparación local
-1. Instala Node.js y Git si todavía no los tienes.
-2. Instala la Supabase CLI según la guía oficial: https://supabase.com/docs/guides/cli
-3. Desde la raíz del proyecto, autentícate con `npx supabase login`.
-4. Enlaza el proyecto existente con `npx supabase link --project-ref ebtdksftgrtfwikpmzqt`. La CLI pedirá la contraseña de la base de datos de Supabase; no la guardes en GitHub ni en variables públicas.
-5. Comprueba el estado de las migraciones con `npm run db:status`.
-6. Revisa cuidadosamente las migraciones pendientes antes de aplicar `npm run db:push`.
+En el repositorio, abre **Settings → Secrets and variables → Actions → New repository secret** y crea estos dos secretos:
 
-### Importante
-La migración de recetas está versionada. El esquema previo de fichajes se creó antes de establecer este flujo, así que todavía hay que importar/registrar ese esquema existente como baseline antes de afirmar que toda la base de datos está bajo control de migraciones. No ejecutes una migración de baseline a ciegas sobre producción.
+- `SUPABASE_ACCESS_TOKEN`: token de acceso personal de Supabase, creado desde la configuración de tu cuenta de Supabase.
+- `SUPABASE_DB_PASSWORD`: contraseña de la base de datos del proyecto.
+
+No compartas estos valores en chats, issues, commits ni archivos del repositorio. No uses la clave pública de la aplicación como sustituto de la contraseña de base de datos.
+
+### Ejecutar una migración
+
+1. Revisa los archivos SQL de `supabase/migrations/` en GitHub.
+2. Abre **Actions → Supabase migrations → Run workflow**.
+3. Ejecuta el flujo contra el proyecto vinculado `ebtdksftgrtfwikpmzqt` y revisa el resultado del job.
+
+El workflow está configurado inicialmente para ejecución manual, para evitar que se modifique producción antes de comprobar el historial de migraciones existente. Una vez establecido el baseline, se puede habilitar la ejecución automática al integrar nuevas migraciones en `main`.
+
+### Estado inicial y precauciones
+
+La base de datos ya tenía tablas de fichajes creadas antes de versionar las migraciones. Antes de activar despliegues automáticos en cada cambio, hay que registrar correctamente el esquema existente como baseline y verificar el historial remoto. No se debe aplicar un baseline generado a ciegas ni borrar tablas para resolver discrepancias.
+
+La limpieza inicial de usuarios y datos de prueba debe hacerse en una migración separada, revisada y explícita, preservando la cuenta administradora acordada. Las migraciones de esquema no deben incluir contraseñas ni tokens.
