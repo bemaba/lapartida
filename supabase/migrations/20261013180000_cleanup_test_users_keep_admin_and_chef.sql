@@ -1,5 +1,5 @@
 -- Limpieza controlada de cuentas y datos de prueba.
--- Conserva únicamente adminlapartida@gmail.com y pauchulirodriguezsanz@gmail.com.
+-- Conserva únicamente adminlapartida@gmail.com y pauchulirodriguezsanz@gmail.com, ambas con rol admin.
 -- Requiere que ambas cuentas existan; falla sin cambios si falta cualquiera.
 -- La migración se aplica en una transacción por Supabase CLI.
 
@@ -38,7 +38,7 @@ begin
         updated_at = now();
 
   insert into public.profiles (user_id, full_name, role, active)
-  values (v_chef_id, 'Jefa de Cocina', 'employee', true)
+  values (v_chef_id, 'Jefa de Cocina', 'admin', true)
   on conflict (user_id) do update
     set full_name = excluded.full_name,
         role = excluded.role,
