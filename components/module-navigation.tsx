@@ -14,13 +14,13 @@ export default function ModuleNavigation({ activeModule = "fichaje" }: ModuleNav
   return (
     <div className={`lp-module-nav-shell ${mobileOpen ? "mobile-open" : ""}`}>
       <div className="lp-module-nav-mobile-head">
-        <Link href="/" className="lp-module-nav-mobile-title" onClick={() => setMobileOpen(false)} aria-label="La Partida — ir al fichaje">La Partida</Link>
+        <Link href="/menus" className="lp-module-nav-mobile-title" onClick={() => setMobileOpen(false)} aria-label="La Partida — ir a menús">La Partida</Link>
         <button type="button" className="lp-module-menu-toggle" onClick={() => setMobileOpen(value => !value)} aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={mobileOpen}>
           {mobileOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
       </div>
       <nav className="lp-module-nav" aria-label="Módulos de La Partida">
-        {appModules.map((module) => {
+        {appModules.filter((module) => module.id !== "fichaje").map((module) => {
           const Icon = icons[module.icon];
           const active = module.id === activeModule;
           const href = module.id === "recetas" ? "/recetas" : module.id === "menus" ? "/menus" : "/";
