@@ -47,10 +47,10 @@ const dietaryOptions = ["Vegetariana", "Vegana", "Sin gluten", "Sin lactosa"];
 const emptyIngredient = (): Ingredient => ({ name: "", quantity: "", note: "" });
 const emptyStep = (): RecipeStep => ({ instruction: "", minutes: "", temperature: "" });
 const initialForm = () => ({
-  title: "", description: "", photo_url: "", cuisine_type: "Mediterránea", category: "Principal",
+  title: "", description: "", photo_url: "", cuisine_type: "Mediterránea", cuisineOtherText: "", category: "Principal",
   tagsText: "", servings: "10", prep_minutes: "", cook_minutes: "", difficulty: "Media" as "Fácil" | "Media" | "Alta",
-  ingredients: [emptyIngredient()], steps: [emptyStep()], allergens: [] as string[],
-  dietary_tags: [] as string[], storage_notes: ""
+  ingredients: [emptyIngredient()], steps: [emptyStep()], allergens: [] as string[], allergenCustomText: "",
+  dietary_tags: [] as string[], dietaryCustomText: "", storage_notes: ""
 });
 
 function formatDate(value: string) {
@@ -71,13 +71,14 @@ function scaleQuantity(quantity: string, factor: number) {
 function toForm(recipe: Recipe) {
   return {
     title: recipe.title, description: recipe.description || "", photo_url: recipe.photo_url || "",
-    cuisine_type: recipe.cuisine_type || "Otra", category: recipe.category || "Principal",
+    cuisine_type: cuisines.includes(recipe.cuisine_type || "") ? (recipe.cuisine_type || "Otra") : "Otra",
+    cuisineOtherText: recipe.cuisine_type && !cuisines.includes(recipe.cuisine_type) ? recipe.cuisine_type : "", category: recipe.category || "Principal",
     tagsText: (recipe.tags || []).join(", "), servings: String(recipe.servings || 10),
     prep_minutes: recipe.prep_minutes == null ? "" : String(recipe.prep_minutes),
     cook_minutes: recipe.cook_minutes == null ? "" : String(recipe.cook_minutes),
     difficulty: recipe.difficulty || "Media", ingredients: recipe.ingredients?.length ? recipe.ingredients : [emptyIngredient()],
     steps: recipe.steps?.length ? recipe.steps : [emptyStep()], allergens: recipe.allergens || [],
-    dietary_tags: recipe.dietary_tags || [], storage_notes: recipe.storage_notes || ""
+    dietary_tags: recipe.dietary_tags || [], dietaryCustomText: "", allergenCustomText: "", storage_notes: recipe.storage_notes || ""
   };
 }
 
@@ -99,6 +100,7 @@ export default function RecipesPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
+  const [expandedPhoto, setExpandedPhoto] = useState(false);
 
   useEffect(() => {
     if (!photoFile) { setPhotoPreview(null); return; }
@@ -205,7 +207,7 @@ export default function RecipesPage() {
       title: form.title.trim(),
       description: form.description.trim(),
       photo_url: photoUrl,
-      cuisine_type: form.cuisine_type,
+      cuisine_type: form.cuisine_type === "Otra" && form.cuisineOtherText.trim() ? form.cuisineOtherText.trim() : form.cuisine_type,
       category: form.category,
       tags: form.tagsText.split(",").map(tag => tag.trim()).filter(Boolean),
       servings: Math.max(1, Number(form.servings) || 1),
@@ -259,6 +261,16 @@ export default function RecipesPage() {
   const toggleArrayValue = (key: "allergens" | "dietary_tags", value: string) => {
     setForm(current => ({ ...current, [key]: current[key].includes(value) ? current[key].filter(item => item !== value) : [...current[key], value] }));
   };
+  const addCustomArrayValue = (key: "allergens" | "dietary_tags", inputKey: "allergenCustomText" | "dietaryCustomText") => {
+    const value = form[inputKey].trim();
+    if (!value) return;
+    if (form[key].some(item => item.toLocaleLowerCase("es") === value.toLocaleLowerCase("es"))) {
+      setNotice("Esa opción ya está añadida.");
+      return;
+    }
+    setForm(current => ({ ...current, [key]: [...current[key], value], [inputKey]: "" }));
+    setNotice("");
+  };
 
   if (!supabase) return <main className="lp-center"><section className="lp-card lp-config"><ChefHat size={26}/><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p></section></main>;
   if (!session) return <main className="lp-center"><section className="lp-card lp-config"><BookOpen size={28}/><h1>Recetario</h1><p>Inicia sesión en La Partida para consultar las recetas.</p><Link className="lp-button lp-primary" href="/">Ir al inicio de sesión</Link></section></main>;
@@ -285,7 +297,7 @@ export default function RecipesPage() {
             <div className="lp-recipe-grid">
               <label className="wide">Nombre de la receta *<input required minLength={2} maxLength={160} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="Ej. Croquetas de setas"/></label>
               <label className="wide">Descripción<textarea rows={2} value={form.description} onChange={e => setForm({...form,description:e.target.value})} placeholder="Describe el plato y qué lo hace especial"/></label>
-              <label>Tipo de cocina<select value={form.cuisine_type} onChange={e => setForm({...form,cuisine_type:e.target.value})}>{cuisines.map(item=><option key={item}>{item}</option>)}</select></label>
+              <div className="lp-recipe-custom-field"><label>Tipo de cocina<select value={form.cuisine_type} onChange={e => setForm({...form,cuisine_type:e.target.value,cuisineOtherText:e.target.value === "Otra" ? form.cuisineOtherText : ""})}>{cuisines.map(item=><option key={item}>{item}</option>)}</select></label>{form.cuisine_type === "Otra" && <label>Especifica el tipo de cocina<input value={form.cuisineOtherText} onChange={e=>setForm({...form,cuisineOtherText:e.target.value})} placeholder="Ej. Peruana, mexicana…"/></label>}</div>
               <label>Categoría<select value={form.category} onChange={e => setForm({...form,category:e.target.value})}>{categories.map(item=><option key={item}>{item}</option>)}</select></label>
               <label>Raciones (pax) *<input required type="number" min="1" max="100000" value={form.servings} onChange={e => setForm({...form,servings:e.target.value})}/></label>
               <label>Dificultad<select value={form.difficulty} onChange={e => setForm({...form,difficulty:e.target.value as "Fácil"|"Media"|"Alta"})}><option>Fácil</option><option>Media</option><option>Alta</option></select></label>
@@ -330,8 +342,8 @@ export default function RecipesPage() {
 
             <div className="lp-recipe-section-title"><SlidersHorizontal size={17}/><h3>Información alimentaria</h3></div>
             <div className="lp-recipe-grid">
-              <fieldset className="lp-choice-field"><legend>Alérgenos presentes</legend><div className="lp-check-grid">{allergenOptions.map(item=><label key={item}><input type="checkbox" checked={form.allergens.includes(item)} onChange={()=>toggleArrayValue("allergens",item)}/>{item}</label>)}</div></fieldset>
-              <fieldset className="lp-choice-field"><legend>Características</legend><div className="lp-check-grid">{dietaryOptions.map(item=><label key={item}><input type="checkbox" checked={form.dietary_tags.includes(item)} onChange={()=>toggleArrayValue("dietary_tags",item)}/>{item}</label>)}</div></fieldset>
+              <fieldset className="lp-choice-field"><legend>Alérgenos presentes</legend><div className="lp-check-grid">{allergenOptions.map(item=><label key={item}><input type="checkbox" checked={form.allergens.includes(item)} onChange={()=>toggleArrayValue("allergens",item)}/>{item}</label>)}{form.allergens.filter(item=>!allergenOptions.includes(item)).map(item=><label key={item}><input type="checkbox" checked onChange={()=>toggleArrayValue("allergens",item)}/>{item} <span className="lp-custom-option-label">(personalizado)</span></label>)}</div><div className="lp-recipe-add-custom"><input aria-label="Añadir otro alérgeno" value={form.allergenCustomText} onChange={e=>setForm({...form,allergenCustomText:e.target.value})} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addCustomArrayValue("allergens","allergenCustomText");}}} placeholder="Añadir otro alérgeno…"/><button type="button" className="lp-button lp-secondary" onClick={()=>addCustomArrayValue("allergens","allergenCustomText")}><Plus size={14}/> Añadir</button></div></fieldset>
+              <fieldset className="lp-choice-field"><legend>Características</legend><div className="lp-check-grid">{dietaryOptions.map(item=><label key={item}><input type="checkbox" checked={form.dietary_tags.includes(item)} onChange={()=>toggleArrayValue("dietary_tags",item)}/>{item}</label>)}{form.dietary_tags.filter(item=>!dietaryOptions.includes(item)).map(item=><label key={item}><input type="checkbox" checked onChange={()=>toggleArrayValue("dietary_tags",item)}/>{item} <span className="lp-custom-option-label">(personalizada)</span></label>)}</div><div className="lp-recipe-add-custom"><input aria-label="Añadir otra característica" value={form.dietaryCustomText} onChange={e=>setForm({...form,dietaryCustomText:e.target.value})} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addCustomArrayValue("dietary_tags","dietaryCustomText");}}} placeholder="Añadir otra característica…"/><button type="button" className="lp-button lp-secondary" onClick={()=>addCustomArrayValue("dietary_tags","dietaryCustomText")}><Plus size={14}/> Añadir</button></div></fieldset>
               <label className="wide">Conservación, congelación y servicio<textarea rows={3} value={form.storage_notes} onChange={e=>setForm({...form,storage_notes:e.target.value})} placeholder="Condiciones de conservación, regeneración, emplatado…"/></label>
             </div>
             <div className="lp-recipe-form-actions"><button type="button" className="lp-button lp-secondary" onClick={closeForm}>Cancelar</button><button type="submit" className="lp-button lp-primary" disabled={saving}><Save size={16}/>{saving?"Guardando…":"Guardar borrador"}</button></div>
@@ -360,7 +372,7 @@ export default function RecipesPage() {
       {selected && <div className="lp-recipe-overlay" role="presentation" onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
         <section className="lp-card lp-recipe-detail" role="dialog" aria-modal="true" aria-labelledby="recipe-detail-title">
           <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2 id="recipe-detail-title">{selected.title}</h2><p className="lp-muted small-text">{selected.cuisine_type} · {selected.category} · {selected.servings} pax</p></div><button className="lp-icon-button" onClick={()=>setSelected(null)} aria-label="Cerrar receta"><X size={17}/></button></div>
-          {selected.photo_url && <img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/>}
+          {selected.photo_url && <button type="button" className="lp-recipe-detail-photo-button" onClick={()=>setExpandedPhoto(true)} aria-label={`Ampliar fotografía de ${selected.title}`}><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><span><Eye size={14}/> Ver fotografía en grande</span></button>}
           <p>{selected.description || "Sin descripción."}</p>
           <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {selected.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {selected.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {selected.difficulty}</span></div>
           <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=><li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}</li>)}</ul>
@@ -381,6 +393,7 @@ export default function RecipesPage() {
           <p className="lp-recipe-audit">Creada el {formatDate(selected.created_at)} · Actualizada el {formatDate(selected.updated_at)}</p>
         </section>
       </div>}
+      {expandedPhoto && selected?.photo_url && <div className="lp-photo-lightbox" role="dialog" aria-modal="true" aria-label={`Fotografía ampliada de ${selected.title}`} onClick={e=>{if(e.target===e.currentTarget)setExpandedPhoto(false);}}><button type="button" className="lp-photo-lightbox-close" onClick={()=>setExpandedPhoto(false)} aria-label="Cerrar fotografía ampliada"><X size={22}/></button><img src={selected.photo_url} alt={selected.title} onClick={e=>e.stopPropagation()}/><span>Haz clic fuera de la imagen o pulsa × para cerrar</span></div>}
     </main>
   );
 }
