@@ -28,6 +28,7 @@ Todos los workflows descritos abajo son manuales: ve a **Actions**, elige el nom
 | **Apply recipes migration** | Comprueba que el baseline está registrado y que la migración de recetas está pendiente; después ejecuta `supabase db push --linked` y verifica el historial. | Fue la instalación inicial del módulo de recetas. Ya se ejecutó correctamente. No volver a ejecutarla para cambios nuevos: prepara una migración nueva con una versión nueva. |
 | **Apply recipe photo storage migration** | Comprueba que el baseline y recetas ya están aplicados; crea/configura el bucket de fotos de recetas y las políticas de acceso; verifica el historial. | Fue la configuración inicial para poder subir fotos de recetas. Ya se ejecutó correctamente. No es necesario repetirla rutinariamente. |
 | **Import Una fuerza del pasado recipes** | Verifica las migraciones existentes y ejecuta una migración idempotente que añade dos recetas como borradores. | Importación inicial del menú temático. Ejecutar una sola vez; el workflow se detiene si la migración ya está aplicada o falta el usuario administrador esperado. |
+| **Cleanup test users and timekeeping data** | Requiere elegir una confirmación explícita; conserva dos cuentas, limpia fichajes/pausas/turnos/auditoría y mantiene las recetas reasignando su autoría. | Limpieza inicial destructiva de datos de prueba. Ejecutar solo después de revisar el alcance; se detiene si falta alguna cuenta o la migración ya se aplicó. |
 
 ### Estado conocido del proyecto (13 de octubre de 2026)
 
@@ -93,6 +94,21 @@ Las fotos de recetas se almacenan en Supabase Storage en un bucket público para
 ## Limpieza de datos y usuarios de prueba
 
 La limpieza de usuarios y datos de prueba es una tarea separada de las migraciones de esquema. **No uses el baseline ni los workflows de recetas para borrar usuarios.** Antes de limpiar producción, confirma qué cuentas y registros existen, preserva la cuenta administradora acordada y prepara una operación explícita con revisión. La eliminación de usuarios de autenticación puede ser irreversible y afectar registros relacionados.
+
+## Limpieza inicial de usuarios y fichajes
+
+El workflow **Cleanup test users and timekeeping data** está preparado para conservar únicamente estas dos cuentas:
+
+- `adminlapartida@gmail.com` — perfil **Administrador Técnico**, rol técnico `admin`.
+- `pauchulirodriguezsanz@gmail.com` — perfil **Jefa de Cocina**, rol de aplicación `employee`.
+
+La limpieza elimina las demás cuentas de autenticación y sus perfiles, todos los fichajes, pausas, turnos y registros de auditoría. Conserva las tablas, funciones, políticas y permisos. También conserva las recetas existentes, reasignando al administrador la autoría de las que pertenecían a cuentas que se eliminarán. Las imágenes de Storage no se eliminan con esta operación.
+
+**Esta acción es destructiva e irreversible para las cuentas eliminadas y el historial de fichajes.** Antes de ejecutarla, asegúrate de que esas dos cuentas existen y de que no necesitas conservar los datos de prueba. El SQL aborta si falta cualquiera de las dos cuentas.
+
+Para ejecutarla desde el navegador, abre [Cleanup test users and timekeeping data](https://github.com/bemaba/lapartida/actions/workflows/cleanup-test-users-and-timekeeping.yml), pulsa **Run workflow** y selecciona exactamente **ELIMINAR USUARIOS Y FICHAJES**. La opción predeterminada es **NO EJECUTAR** y no realiza cambios.
+
+El workflow aplica las migraciones pendientes en orden. Si la importación de recetas `20261013170000` todavía está pendiente, se ejecutará antes de la limpieza y añadirá las dos recetas temáticas como borradores. Tras finalizar, verifica el resultado en la aplicación y comprueba que solo quedan las dos cuentas acordadas.
 
 ## Solución de problemas
 
