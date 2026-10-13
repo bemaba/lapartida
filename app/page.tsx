@@ -293,7 +293,7 @@ export default function Home() {
       <section className="lp-home-content">
         <div className="lp-home-intro"><div className="lp-logo"><ChefHat size={28}/></div><div className="lp-kicker">ESPACIO DE TRABAJO</div><h1>La Partida</h1><p>Gestión de cocina, en un solo lugar.</p></div>
         <div className="lp-home-modules" aria-label="Módulos activos">
-          {activeModules.map(module => { const Icon = moduleIcons[module.icon]; return <Link key={module.id} href={moduleRoutes[module.id] || "/"} className="lp-home-module-card"><span className="lp-home-module-icon"><Icon size={30}/></span><strong>{module.label}</strong><span>{module.description}</span><span className="lp-home-module-action">Abrir módulo <span aria-hidden="true">→</span></span></Link>; })}
+          {activeModules.map(module => { const Icon = moduleIcons[module.id]; return <Link key={module.id} href={moduleRoutes[module.id] || "/"} className="lp-home-module-card"><span className="lp-home-module-icon"><Icon size={30}/></span><strong>{module.label}</strong><span>{module.description}</span><span className="lp-home-module-action">Abrir módulo <span aria-hidden="true">→</span></span></Link>; })}
         </div>
         <p className="lp-home-footnote">Selecciona un módulo para empezar.</p>
       </section>
