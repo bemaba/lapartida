@@ -300,3 +300,12 @@
   .lp-recipe-detail h3{break-after:avoid}
   .lp-recipe-ingredient-detail li,.lp-recipe-step-detail li{break-inside:avoid}
 }
+
+/* Admin correction form for closed time entries */
+.lp-entry-edit-form{display:grid;grid-template-columns:minmax(190px,1fr) minmax(180px,.8fr) minmax(180px,.8fr);gap:13px;align-items:end;padding:16px;margin:18px 0 4px;background:#f8faf7;border:1px solid #e5ebe3;border-radius:12px}
+.lp-entry-edit-form h3{margin:6px 0;font-size:14px}
+.lp-entry-edit-form label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#566259}
+.lp-entry-edit-form input{min-width:0;width:100%;padding:10px;border:1px solid #dfe5dd;border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:12px}
+.lp-entry-edit-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+.lp-entry-edit-button{padding:7px 9px;font-size:11px;white-space:nowrap}
+@media(max-width:760px){.lp-entry-edit-form{grid-template-columns:1fr}.lp-entry-edit-actions{grid-column:auto;flex-wrap:wrap}.lp-entry-edit-actions .lp-button{flex:1}}
