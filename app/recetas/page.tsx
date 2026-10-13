@@ -300,10 +300,10 @@ export default function RecipesPage() {
   };
 
   const startNew = () => {
-    setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
+    setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setRecipeHistory([]); setNotice("");
   };
   const startEdit = (recipe: Recipe) => {
-    setEditing(recipe); setForm(toForm(recipe)); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setNotice("");
+    setEditing(recipe); setForm(toForm(recipe)); setPhotoFile(null); setRemovePhoto(false); setFormOpen(true); setSelected(null); setRecipeHistory([]); setNotice("");
   };
   const closeForm = () => { setFormOpen(false); setEditing(null); setForm(initialForm()); setPhotoFile(null); setRemovePhoto(false); };
 
@@ -505,7 +505,7 @@ export default function RecipesPage() {
                 <div className="lp-recipe-card-top"><span className="lp-recipe-category">{recipe.category}</span><span className={`lp-recipe-status ${recipe.status}`}>{recipe.status==="published"?"Publicada":recipe.status==="draft"?"Borrador":"Archivada"}</span></div>
                 <h3>{recipe.title}</h3><p>{recipe.description || "Sin descripción"}</p>
                 <div className="lp-recipe-meta"><span><Users size={14}/>{recipe.servings} pax</span><span><Clock3 size={14}/>{formatMinutes(recipe.prep_minutes,recipe.cook_minutes)}</span></div>
-                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setTargetServings(recipe.servings);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
+                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setRecipeHistory([]);setTargetServings(recipe.servings);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
               </div>
             </article>)}</div>}
           {!loading && filteredRecipes.length > 0 && <div className="lp-recipe-pagination">
@@ -524,7 +524,7 @@ export default function RecipesPage() {
         </section>
       </div>
 
-      {selected && <div className="lp-recipe-overlay" role="presentation" onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
+      {selected && <div className="lp-recipe-overlay" role="presentation" onClick={e=>{if(e.target===e.currentTarget){setSelected(null);setRecipeHistory([]);}}}>
         <section className="lp-card lp-recipe-detail" role="dialog" aria-modal="true" aria-labelledby="recipe-detail-title">
           <div className="lp-card-title"><div><span className="lp-kicker">FICHA DE RECETA</span><h2 id="recipe-detail-title">{selected.title}</h2><p className="lp-muted small-text">{selected.cuisine_type} · {selected.category} · {selected.servings} pax</p></div><div className="lp-recipe-nav-actions">{recipeHistory.length>0&&<button type="button" className="lp-button lp-secondary" onClick={returnToPreviousRecipe}>← Volver a receta anterior</button>}<button className="lp-icon-button" onClick={()=>{setSelected(null);setRecipeHistory([]);}} aria-label="Cerrar receta"><X size={17}/></button></div></div>
           {selected.photo_url && <div className="lp-recipe-detail-photo-wrap"><img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/><button type="button" className="lp-recipe-detail-photo-expand" onClick={e=>{e.stopPropagation();setExpandedPhoto(true)}} aria-label={`Ampliar fotografía de ${selected.title}`} title="Ampliar fotografía"><Maximize2 size={18}/></button></div>}
