@@ -61,6 +61,13 @@ function formatMinutes(prep: number | null, cook: number | null) {
   if (!prep && !cook) return "Tiempo no indicado";
   return total ? `${total} min en total` : "Sin tiempo de elaboración";
 }
+function scaleQuantity(quantity: string, factor: number) {
+  const match = quantity.trim().match(/^(\\d+(?:[.,]\\d+)?)(\\s*.*)$/);
+  if (!match || !Number.isFinite(factor) || factor <= 0) return quantity;
+  const scaled = Number(match[1].replace(",", ".")) * factor;
+  const formatted = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(scaled);
+  return `${formatted}${match[2]}`;
+}
 function toForm(recipe: Recipe) {
   return {
     title: recipe.title, description: recipe.description || "", photo_url: recipe.photo_url || "",
@@ -87,6 +94,7 @@ export default function RecipesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [selected, setSelected] = useState<Recipe | null>(null);
+  const [targetServings, setTargetServings] = useState(10);
   const [form, setForm] = useState(initialForm);
 
   const isAdmin = profile?.role === "admin";
@@ -258,7 +266,7 @@ export default function RecipesPage() {
             <div className="lp-recipe-section-title"><ClipboardList size={17}/><h3>Ingredientes</h3><span>{form.ingredients.filter(item=>item.name.trim()).length} ingredientes</span></div>
             <div className="lp-ingredient-list">
               {form.ingredients.map((item,index)=><div className="lp-ingredient-row" key={index}>
-                <label>Ingrediente<input required={index===0} value={item.name} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,name:e.target.value}:row)}))} placeholder="Ej. Harina"/></label>
+                <label>Ingrediente<input value={item.name} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,name:e.target.value}:row)}))} placeholder="Ej. Harina"/></label>
                 <label>Cantidad y unidad<input value={item.quantity} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,quantity:e.target.value}:row)}))} placeholder="500 g"/></label>
                 <label>Notas<input value={item.note} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,note:e.target.value}:row)}))} placeholder="Tamizada, picado…"/></label>
                 <button type="button" className="lp-icon-button" onClick={()=>setForm(current=>({...current,ingredients:current.ingredients.filter((_,i)=>i!==index).length?current.ingredients.filter((_,i)=>i!==index):[emptyIngredient()]}))} aria-label="Eliminar ingrediente"><X size={15}/></button>
@@ -270,7 +278,7 @@ export default function RecipesPage() {
             <div className="lp-step-list">
               {form.steps.map((step,index)=><div className="lp-step-row" key={index}>
                 <span className="lp-step-number">{index+1}</span>
-                <div className="lp-step-fields"><label>Instrucciones *<textarea required={index===0} rows={2} value={step.instruction} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,instruction:e.target.value}:row)}))} placeholder="Describe qué hay que hacer"/></label><div className="lp-recipe-grid compact"><label>Tiempo (min)<input type="number" min="0" value={step.minutes} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,minutes:e.target.value}:row)}))}/></label><label>Temperatura (opcional)<input value={step.temperature} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,temperature:e.target.value}:row)}))} placeholder="180 °C"/></label></div></div>
+                <div className="lp-step-fields"><label>Instrucciones *<textarea rows={2} value={step.instruction} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,instruction:e.target.value}:row)}))} placeholder="Describe qué hay que hacer"/></label><div className="lp-recipe-grid compact"><label>Tiempo (min)<input type="number" min="0" value={step.minutes} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,minutes:e.target.value}:row)}))}/></label><label>Temperatura (opcional)<input value={step.temperature} onChange={e=>setForm(current=>({...current,steps:current.steps.map((row,i)=>i===index?{...row,temperature:e.target.value}:row)}))} placeholder="180 °C"/></label></div></div>
                 <button type="button" className="lp-icon-button" onClick={()=>setForm(current=>({...current,steps:current.steps.filter((_,i)=>i!==index).length?current.steps.filter((_,i)=>i!==index):[emptyStep()]}))} aria-label="Eliminar paso"><X size={15}/></button>
               </div>)}
               <button type="button" className="lp-button lp-secondary lp-add-row" onClick={()=>setForm(current=>({...current,steps:[...current.steps,emptyStep()]}))}><Plus size={15}/> Añadir paso</button>
@@ -299,7 +307,7 @@ export default function RecipesPage() {
                 <div className="lp-recipe-card-top"><span className="lp-recipe-category">{recipe.category}</span><span className={`lp-recipe-status ${recipe.status}`}>{recipe.status==="published"?"Publicada":recipe.status==="draft"?"Borrador":"Archivada"}</span></div>
                 <h3>{recipe.title}</h3><p>{recipe.description || "Sin descripción"}</p>
                 <div className="lp-recipe-meta"><span><Users size={14}/>{recipe.servings} pax</span><span><Clock3 size={14}/>{formatMinutes(recipe.prep_minutes,recipe.cook_minutes)}</span></div>
-                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>setSelected(recipe)}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
+                <div className="lp-recipe-card-footer"><button className="lp-button lp-secondary" onClick={()=>{setTargetServings(recipe.servings);setSelected(recipe);}}><Eye size={15}/> Ver receta</button>{(isAdmin || (recipe.created_by===session.user.id && recipe.status==="draft")) && <button className="lp-icon-button" title="Editar receta" onClick={()=>startEdit(recipe)}><Pencil size={15}/></button>}</div>
               </div>
             </article>)}</div>}
         </section>
@@ -311,7 +319,7 @@ export default function RecipesPage() {
           {selected.photo_url && <img className="lp-recipe-detail-photo" src={selected.photo_url} alt={selected.title}/>}
           <p>{selected.description || "Sin descripción."}</p>
           <div className="lp-recipe-detail-meta"><span><strong>Preparación:</strong> {selected.prep_minutes ?? "—"} min</span><span><strong>Cocción:</strong> {selected.cook_minutes ?? "—"} min</span><span><strong>Dificultad:</strong> {selected.difficulty}</span></div>
-          <h3>Ingredientes</h3><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=><li key={index}><strong>{item.quantity || "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}</li>)}</ul>
+          <div className="lp-recipe-ingredients-heading"><h3>Ingredientes</h3><label>Raciones a preparar<input type="number" min="1" max="100000" value={targetServings} onChange={e=>setTargetServings(Math.max(1,Math.min(100000,Number(e.target.value)||1)))}/></label></div><p className="lp-recipe-scale-note">Cantidades ajustadas desde la receta original de {selected.servings} pax.</p><ul className="lp-recipe-ingredient-detail">{selected.ingredients?.map((item,index)=><li key={index}><strong>{item.quantity ? scaleQuantity(item.quantity,targetServings/selected.servings) : "Cantidad al gusto"}</strong> {item.name}{item.note? <span> — {item.note}</span>:null}</li>)}</ul>
           <h3>Elaboración</h3><ol className="lp-recipe-step-detail">{selected.steps?.map((step,index)=><li key={index}><p>{step.instruction}</p>{(step.minutes||step.temperature)&&<small>{step.minutes?step.minutes+" min":""}{step.minutes&&step.temperature?" · ":""}{step.temperature}</small>}</li>)}</ol>
           {selected.allergens?.length>0&&<><h3>Alérgenos declarados</h3><div className="lp-recipe-tags">{selected.allergens.map(item=><span key={item}>{item}</span>)}</div></>}
           {selected.dietary_tags?.length>0&&<><h3>Características</h3><div className="lp-recipe-tags">{selected.dietary_tags.map(item=><span key={item}>{item}</span>)}</div></>}
