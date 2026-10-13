@@ -3,7 +3,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChefHat, Clock3, Play, Pause, Square, Users, Download, ShieldCheck, ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, FileSpreadsheet, Pencil, Save, X, BookOpen, Utensils, UsersRound, Package } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
@@ -59,7 +58,6 @@ function formatMinutes(minutes: number) {
 }
 
 export default function Home() {
-  const router = useRouter();
   const supabase = getSupabase();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -285,6 +283,7 @@ export default function Home() {
   };
 
   if (session && !profile && !loading) return <main className="lp-center"><section className="lp-card lp-config"><ChefHat size={26}/><h1>La Partida</h1><p>{notice || "Cargando tu perfil…"}</p></section></main>;
+  if (session && profile && !profile.active) return <main className="lp-center"><section className="lp-card lp-config"><ChefHat size={26}/><h1>Cuenta desactivada</h1><p>Contacta con la administradora de La Partida.</p></section></main>;
   if (session && profile?.active) {
     const moduleIcons = { fichaje: Clock3, recetas: BookOpen, menus: Utensils, eventos: CalendarDays, equipo: UsersRound, compras: Package };
     const moduleRoutes: Record<string, string> = { fichaje: "/", recetas: "/recetas", menus: "/menus", eventos: "/eventos", equipo: "/equipo", compras: "/compras" };
