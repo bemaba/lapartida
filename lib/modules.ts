@@ -21,7 +21,7 @@ export const appModules: AppModule[] = [
     label: "Recetas",
     description: "Recetario, ingredientes, cantidades y alérgenos.",
     icon: "book",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "eventos",
