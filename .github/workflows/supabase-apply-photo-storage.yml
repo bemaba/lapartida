@@ -1,0 +1,69 @@
+name: Apply recipe photo storage migration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  apply-photo-storage:
+    name: Configure Supabase Storage for recipe photos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing GitHub repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing GitHub repository secret SUPABASE_DB_PASSWORD" && exit 1)
+          supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify existing migrations are applied and photo storage is pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/20261013150000_recipe_photo_storage.sql
+          supabase migration list --linked | tee /tmp/migrations.txt
+          grep -E '20261012000000.*20261012000000' /tmp/migrations.txt >/dev/null || {
+            echo "Safety stop: baseline is not registered as applied."
+            exit 1
+          }
+          grep -E '20261013090000.*20261013090000' /tmp/migrations.txt >/dev/null || {
+            echo "Safety stop: recipes migration is not registered as applied."
+            exit 1
+          }
+          awk -F'|' '$1 ~ /20261013150000/ && $2 !~ /20261013150000/ {pending=1} END {exit !pending}' /tmp/migrations.txt || {
+            echo "Safety stop: photo storage migration is not listed as pending."
+            exit 1
+          }
+
+      - name: Apply pending photo storage migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --linked
+
+      - name: Verify photo storage migration is applied
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261013150000.*20261013150000' /tmp/migrations-after.txt >/dev/null || {
+            echo "Verification failed: photo storage migration is not registered as applied."
+            exit 1
+          }
