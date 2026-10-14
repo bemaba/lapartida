@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Session, createClient } from "@supabase/supabase-js";
-import { CalendarDays, ChevronLeft, ChevronRight, Palmtree, Plus, Trash2, Check, X, Settings2, Pencil } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Palmtree, Plus, Save, Trash2, Check, X, Settings2, Pencil } from "lucide-react";
 import Link from "next/link";
 import AppHeader from "@/components/app-header";
 import ModuleNavigation from "@/components/module-navigation";
