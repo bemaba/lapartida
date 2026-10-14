@@ -35,8 +35,8 @@ jobs:
 
       - name: Link Supabase project
         env:
-          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: \${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
@@ -45,7 +45,7 @@ jobs:
 
       - name: Verify only the intended migration is pending
         env:
-          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           supabase migration list --linked | tee /tmp/migrations-before.txt
@@ -60,12 +60,12 @@ jobs:
 
       - name: Apply migration
         env:
-          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push --linked
 
       - name: Verify migration is applied
         env:
-          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           supabase migration list --linked | tee /tmp/migrations-after.txt
