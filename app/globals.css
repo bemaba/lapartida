@@ -480,3 +480,12 @@
 .lp-ingredient-row>label{min-width:0;max-width:100%}
 .lp-ingredient-row select{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;text-overflow:ellipsis}
 .lp-recipe-source-warning,.lp-recipe-form-hint{padding:10px 12px;border:1px solid #eadfbd;border-radius:8px;background:#fffaf0;color:#765a23;font-size:12px;line-height:1.55}
+
+
+/* Dedicated full-width shell for the events module */
+.lp-production-screen{display:flex;flex-direction:column;min-height:100vh;width:100%;min-width:0;overflow-x:clip}
+.lp-production-screen>.lp-module-nav-shell{position:relative;width:100%;flex:0 0 auto}
+.lp-production-main{width:100%;min-width:0;flex:1}
+.lp-production-main>.lp-app-header{width:100%}
+.lp-production-main>.lp-production-content{width:100%;max-width:1480px;margin-inline:auto;padding:32px clamp(24px,4vw,56px) 48px}
+@media(max-width:680px){.lp-production-main>.lp-production-content{padding:20px 14px 36px}}
