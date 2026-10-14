@@ -1,5 +1,5 @@
 -- La Partida: separar platos finales y elaboraciones intermedias.
--- Ejecutar en Supabase SQL Editor antes de utilizar la nueva gestión de recetas.
+-- Versión única posterior al historial remoto existente.
 
 alter table public.recipes
   add column if not exists recipe_type text not null default 'final',
