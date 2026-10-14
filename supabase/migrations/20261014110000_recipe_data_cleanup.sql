@@ -3,8 +3,9 @@
 
 update public.recipes
 set description = ''
-where description ~* '^\s*Transcripci[oó]n fiel del documento'
-   or description ~* '^\s*Rendimiento no indicado en la fuente';
+where status <> 'published'
+  and (description ~* '^\s*Transcripci[oó]n fiel del documento'
+   or description ~* '^\s*Rendimiento no indicado en la fuente');
 
 -- Remove the import/editorial disclaimer when it was appended to an otherwise useful description.
 update public.recipes
