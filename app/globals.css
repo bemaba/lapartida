@@ -572,3 +572,15 @@
 .lp-planning-policy-summary{display:grid;gap:7px;margin-top:22px;padding:16px;border-radius:10px;background:#f7f9f6;font-size:12px;color:var(--muted)}.lp-planning-policy-summary strong{color:var(--ink);margin-bottom:3px}
 @media(max-width:900px){.lp-planning-leave-layout{grid-template-columns:1fr}.lp-planning-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.lp-planning-heading{flex-direction:column}.lp-planning-week,.lp-planning-form-card,.lp-planning-requests{padding:15px}.lp-planning-form{grid-template-columns:1fr}.lp-planning-wide{grid-column:auto}.lp-planning-weekbar{gap:8px}.lp-planning-weekbar .lp-button{padding:8px}}
+
+
+.lp-planning-cell-shifts{display:grid;gap:5px;min-width:88px}
+.lp-planning-add-shift{display:flex;align-items:center;justify-content:center;width:100%;min-height:27px;border:1px dashed #cbd9ce;border-radius:7px;background:transparent;color:var(--green);cursor:pointer;transition:background .15s,border-color .15s}
+.lp-planning-add-shift:hover{background:#f0f7f1;border-color:var(--green)}
+.lp-planning-add-shift:disabled,.lp-planning-quick-actions button:disabled{opacity:.5;cursor:wait}
+.lp-planning-quick-form{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:7px;border:1px solid #d7e6d9;border-radius:7px;background:#f8fbf8}
+.lp-planning-quick-form label{display:grid;gap:3px;font-size:9px;font-weight:700;color:var(--muted)}
+.lp-planning-quick-form input{box-sizing:border-box;width:100%;min-width:0;padding:5px 2px;border:1px solid var(--line);border-radius:5px;background:white;color:var(--ink);font:inherit;font-size:10px}
+.lp-planning-quick-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:5px}
+.lp-planning-quick-actions button{display:grid;place-items:center;width:25px;height:24px;border:1px solid var(--line);border-radius:5px;background:white;color:var(--green);cursor:pointer}
+.lp-planning-quick-actions button:last-child{color:#9d5448}
