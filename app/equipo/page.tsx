@@ -74,7 +74,7 @@ export default function TeamPage() {
   if (!supabase) return <main className="lp-page"><section className="lp-card lp-login"><ChefHat/><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p></section></main>;
   if (loading && !profile) return <main className="lp-page"><div className="lp-loading">Cargando equipo…</div></main>;
   if (!session) return <main className="lp-page"><section className="lp-card lp-login"><h1>Equipo</h1><p>Inicia sesión en La Partida para continuar.</p><a className="lp-button lp-primary" href="/">Volver al inicio</a></section></main>;
-  if (!profile?.active || profile.role !== "admin") return <main className="lp-page"><AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase.auth.signOut(); window.location.href="/"; }}/><ModuleNavigation activeModule="equipo"/><div className="lp-content"><section className="lp-card"><h1>Acceso restringido</h1><p>Solo una administradora activa puede gestionar el equipo.</p></section></div></main>;
+  if (!profile?.active || profile.role !== "admin") return <main className="lp-page"><AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase.auth.signOut(); window.location.href="/"; }}/><ModuleNavigation activeModule="equipo"/><div className="lp-content"><section className="lp-card"><h1>Equipo</h1><p>Tu cuenta puede consultar los horarios de todo el equipo y solicitar vacaciones.</p><a className="lp-button lp-primary" href="/equipo/horarios">Ver horarios y vacaciones</a></section></div></main>;
 
   const staff = employees.filter(employee => employee.role === "employee");
   const activeCount = staff.filter(employee => employee.active).length;
@@ -82,7 +82,7 @@ export default function TeamPage() {
     <AppHeader fullName={profile.full_name || session.user.email || "Usuario"} role={profile.role} onLogout={() => { void supabase.auth.signOut(); window.location.href="/"; }}/>
     <ModuleNavigation activeModule="equipo"/>
     <div className="lp-content lp-team-content">
-      <header className="lp-heading"><div><span className="lp-kicker">ORGANIZACIÓN DE COCINA</span><h1>Equipo</h1><p>Invita empleados y gestiona quién tiene acceso a La Partida.</p></div></header>
+      <header className="lp-heading"><div><span className="lp-kicker">ORGANIZACIÓN DE COCINA</span><h1>Equipo</h1><p>Invita empleados y gestiona quién tiene acceso a La Partida.</p></div><a className="lp-button lp-primary" href="/equipo/horarios">Horarios y vacaciones</a></header>
       {notice && <div className="lp-notice" role="status">{notice}</div>}
       <div className="lp-team-summary"><div className="lp-card lp-team-stat"><UsersRound size={22}/><div><strong>{activeCount}</strong><span>Empleados activos</span></div></div><div className="lp-card lp-team-stat"><UserX size={22}/><div><strong>{staff.length-activeCount}</strong><span>Cuentas desactivadas</span></div></div></div>
       <section className="lp-card lp-team-invite"><div className="lp-card-title"><div><span className="lp-kicker">NUEVA INCORPORACIÓN</span><h2>Invitar a un empleado</h2></div><UserPlus size={22}/></div><p>Le enviaremos un correo para acceder y configurar su contraseña.</p>
@@ -91,7 +91,7 @@ export default function TeamPage() {
       <section className="lp-card lp-team-list"><div className="lp-card-title"><div><span className="lp-kicker">PERSONAL</span><h2>Personas del equipo</h2></div><span className="lp-team-count">{employees.length}</span></div>
         {loading ? <p className="lp-muted">Actualizando equipo…</p> : employees.length === 0 ? <div className="lp-team-empty"><UserRound size={28}/><strong>Aún no hay empleados</strong><span>Invita a la primera persona desde el formulario.</span></div> : <div className="lp-team-table-wrap"><table className="lp-team-table"><thead><tr><th>Empleado</th><th>Estado</th><th>Acceso</th></tr></thead><tbody>{employees.map(employee=><tr key={employee.user_id}><td><div className="lp-team-person"><span className="lp-team-avatar">{employee.full_name.trim().split(/\s+/).slice(0,2).map(part=>part[0]).join("").toUpperCase() || "E"}</span><span><strong>{employee.full_name}</strong><small>{employee.email || "Correo no disponible"}</small></span></div></td><td><span className={`lp-team-status ${employee.active ? "active" : "inactive"}`}>{employee.active ? "Activo" : "Desactivado"}</span></td><td>{employee.role === "admin" ? <span className="lp-muted">Administración</span> : <button type="button" className="lp-button lp-secondary lp-team-action" disabled={saving} onClick={()=>void toggleActive(employee)}>{employee.active ? <><UserX size={14}/> Desactivar</> : <><UserCheck size={14}/> Reactivar</>}</button>}</td></tr>)}</tbody></table></div>}
       </section>
-      <p className="lp-team-footnote">Las cuentas desactivadas se conservan para mantener el historial. La planificación de horarios y el seguimiento del equipo se podrán añadir más adelante.</p>
+      <p className="lp-team-footnote">Las cuentas desactivadas se conservan para mantener el historial. La planificación semanal y las solicitudes de vacaciones están en Horarios y vacaciones.</p>
     </div>
   </main>;
 }

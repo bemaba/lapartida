@@ -1,0 +1,72 @@
+name: Apply team scheduling and leave migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Escribe APPLY para aplicar únicamente la migración de horarios y vacaciones"
+        required: true
+        type: choice
+        options:
+          - NO
+          - APPLY
+        default: NO
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm_apply == 'APPLY'
+    name: Review and apply team planning migration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing repository secret SUPABASE_DB_PASSWORD" && exit 1)
+          supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify only the intended migration is pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-before.txt
+          PENDING="$(awk -F'|' 'NR > 2 { local_version=$1; remote_version=$2; gsub(/[^0-9]/, "", local_version); gsub(/[^0-9]/, "", remote_version); if (length(local_version) == 14 && remote_version == "") print local_version }' /tmp/migrations-before.txt | sort)"
+          EXPECTED="20261014130000"
+          if [ "$PENDING" != "$EXPECTED" ]; then
+            echo "Safety stop: only migration 20261014130000 may be pending."
+            echo "Detected pending versions:"
+            printf '%s\n' "$PENDING"
+            exit 1
+          fi
+
+      - name: Apply migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --linked
+
+      - name: Verify migration is applied
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261014130000.*20261014130000' /tmp/migrations-after.txt >/dev/null
