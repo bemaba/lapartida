@@ -91,13 +91,19 @@ function intermediateFactor(parent: Recipe, linked: Recipe, parentFactor: number
   if (!amounts.length || amounts.some(amount => amount === null)) return parentFactor;
   return (amounts as number[]).reduce((sum, amount) => sum + amount, 0) / linked.yield_quantity;
 }
+function scaleQuantity(quantity: string, factor: number) {
+  const parsed = parseQuantityUnit(quantity);
+  if (!parsed || !Number.isFinite(factor) || factor <= 0) return quantity;
+  const amount = formatFactor(parsed.amount * factor);
+  return parsed.unit ? `${amount} ${parsed.unit}` : amount;
+}
 function quantityLabel(recipe: Recipe, factor: number, guests: number) {
   if (recipe.recipe_type === "final") return `${guests} pax`;
   if (recipe.yield_quantity && recipe.yield_unit) return `${formatFactor(recipe.yield_quantity * factor)} ${recipe.yield_unit}`;
   return `× ${formatFactor(factor)} de la receta base`;
 }
 function makePlan(menu: MenuRecord, recipes: Recipe[], guests: number, eventDate: string): PlannedTask[] {
-  const finalRecipes = (menu.menu_items || [])
+  const finalRecipes = [...(menu.menu_items || [])]
     .sort((a, b) => a.sort_order - b.sort_order)
     .map(item => recipes.find(recipe => recipe.id === item.recipe_id))
     .filter((recipe): recipe is Recipe => Boolean(recipe && recipe.recipe_type === "final"));
@@ -313,7 +319,7 @@ export default function ProductionPage() {
                   <div className="lp-production-task-list">{selectedTasks.map(task => <article key={task.id} className="lp-production-task">
                     <div className="lp-production-task-main"><div className="lp-production-task-title"><span className={task.recipe_type === "intermediate" ? "lp-production-kind intermediate" : "lp-production-kind"}>{task.recipe_type === "intermediate" ? "Elaboración intermedia" : "Plato final"}</span><h3>{task.recipe_title}</h3><p className="lp-production-quantity">{task.quantity_label}</p></div><span className={`lp-production-task-status ${task.status}`}>{taskStatusLabels[task.status]}</span></div>
                     <div className="lp-production-task-controls"><label>Fecha de preparación<input type="date" value={task.production_date} disabled={!isAdmin} onChange={e => void updateTask(task, { production_date: e.target.value })}/></label><label>Estado<select value={task.status} disabled={!isAdmin} onChange={e => void updateTask(task, { status: e.target.value as ProductionTask["status"] })}>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="lp-production-task-notes">Notas<input value={task.notes || ""} disabled={!isAdmin} onChange={e => setTasks(current => current.map(item => item.id === task.id ? { ...item, notes: e.target.value } : item))} onBlur={e => void updateTask(task, { notes: e.target.value })} placeholder="Indicaciones para la preparación…"/></label></div>
-                    <details className="lp-production-recipe-snapshot"><summary>Ver ingredientes y pasos guardados</summary><p><strong>Ingredientes</strong></p><ul>{(task.recipe_snapshot?.ingredients || []).map((ingredient, index) => <li key={index}>{ingredient.quantity || "A gusto"} · {ingredient.name}{ingredient.note ? ` — ${ingredient.note}` : ""}</li>)}</ul><p><strong>Elaboración</strong></p><ol>{(task.recipe_snapshot?.steps || []).map((step, index) => <li key={index}>{step.instruction}</li>)}</ol></details>
+                    <details className="lp-production-recipe-snapshot"><summary>Ver ingredientes y pasos guardados</summary><p><strong>Ingredientes</strong></p><ul>{(task.recipe_snapshot?.ingredients || []).map((ingredient, index) => <li key={index}>{ingredient.quantity ? scaleQuantity(ingredient.quantity, task.quantity_factor) : "A gusto"} · {ingredient.name}{ingredient.note ? ` — ${ingredient.note}` : ""}</li>)}</ul><p><strong>Elaboración</strong></p><ol>{(task.recipe_snapshot?.steps || []).map((step, index) => <li key={index}>{step.instruction}</li>)}</ol></details>
                   </article>)}</div>}
               </>}
             </section>
