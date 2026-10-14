@@ -516,7 +516,7 @@ export default function RecipesPage() {
   if (profile && !profile.active) return <main className="lp-center"><section className="lp-card lp-config"><h1>Cuenta desactivada</h1><p>Contacta con una administradora de La Partida.</p><Link href="/">Volver</Link></section></main>;
 
   return (
-    <main className="lp-app">
+    <main className="lp-app lp-recipes-screen">
       <AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => void supabase?.auth.signOut()} />
       <ModuleNavigation activeModule="recetas" />
       <div className="lp-content">
