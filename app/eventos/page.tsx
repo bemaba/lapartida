@@ -121,7 +121,7 @@ function makePlan(menu: MenuRecord, recipes: Recipe[], guests: number, eventDate
     const factor = guests / Math.max(1, recipe.servings || 1);
     add(recipe, factor, new Set());
   }
-  return [...accumulated.values()].map(({ recipe, factor, order: sortOrder }) => ({
+  return Array.from(accumulated.values()).map(({ recipe, factor, order: sortOrder }) => ({
     recipe_id: recipe.id,
     recipe_title: recipe.title,
     recipe_type: recipe.recipe_type,
