@@ -66,6 +66,9 @@ function extractLeadingQuantity(value: string) {
   const match = value.trim().match(/^(\d+(?:[.,]\d+)?\s*(?:kg|mg|g|gr|gramos?|l|ml|cl|dl|unidades?|uds?))\s+(.+)$/i);
   return match ? match[1].replace(/\s+/g, " ").trim() : "";
 }
+function cleanIngredientName(value: string) {
+  return value.trim().replace(/^\\d+(?:[.,]\\d+)?\\s*(?:kg|mg|g|gr|gramos?|l|ml|cl|dl|unidades?|uds?)\\s+/i, "");
+}
 function normalizeUnit(unit: string) {
   const value = unit.trim().toLocaleLowerCase("es").replace(/\./g, "");
   const aliases: Record<string, string> = { gr: "g", gramo: "g", gramos: "g", kilo: "kg", kilos: "kg", kilogramo: "kg", kilogramos: "kg", miligramo: "mg", miligramos: "mg", mililitro: "ml", mililitros: "ml", litro: "l", litros: "l", centilitro: "cl", centilitros: "cl", decilitro: "dl", decilitros: "dl", unidad: "ud", unidades: "ud", uds: "ud", u: "ud", pieza: "ud", piezas: "ud", raciones: "racion", pax: "pax" };
@@ -443,7 +446,7 @@ export default function RecipesPage() {
       prep_minutes: form.prep_minutes === "" ? null : Math.max(0, Number(form.prep_minutes) || 0),
       cook_minutes: form.cook_minutes === "" ? null : Math.max(0, Number(form.cook_minutes) || 0),
       difficulty: form.difficulty,
-      ingredients: form.ingredients.filter(item => item.name.trim()).map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() || extractLeadingQuantity(item.name), note: item.note.trim(), recipe_id: item.recipe_id || null })),
+      ingredients: form.ingredients.filter(item => item.name.trim()).map(item => ({ name: cleanIngredientName(item.name), quantity: item.quantity.trim() || extractLeadingQuantity(item.name), note: item.note.trim(), recipe_id: item.recipe_id || null })),
       steps: form.steps.filter(item => item.instruction.trim()).map(item => ({ instruction: item.instruction.trim(), minutes: item.minutes.trim(), temperature: item.temperature.trim() })),
       allergens: form.allergens,
       dietary_tags: form.dietary_tags,
