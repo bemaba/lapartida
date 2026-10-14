@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Plus, Save, Trash2, Utensils, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Plus, Printer, Save, Trash2, Utensils, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
@@ -34,6 +34,7 @@ export default function MenusPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [recipeSearch, setRecipeSearch] = useState("");
+  const [printMenuId, setPrintMenuId] = useState<string | null>(null);
 
   const isAdmin = profile?.role === "admin";
   useEffect(() => {
@@ -69,6 +70,14 @@ export default function MenusPage() {
   }, [session]);
 
   useEffect(() => { if (session) void refresh(); else { setMenus([]); setRecipes([]); } }, [session, refresh]);
+
+  useEffect(() => {
+    if (!printMenuId) return;
+    const afterPrint = () => setPrintMenuId(null);
+    window.addEventListener("afterprint", afterPrint);
+    const timer = window.setTimeout(() => window.print(), 100);
+    return () => { window.clearTimeout(timer); window.removeEventListener("afterprint", afterPrint); };
+  }, [printMenuId]);
 
   const availableRecipes = useMemo(() => recipes.filter(recipe =>
     recipe.recipe_type === "final" &&
@@ -155,7 +164,7 @@ export default function MenusPage() {
   if (!profile?.active) return <main className="lp-page"><section className="lp-card lp-login"><h1>Acceso no disponible</h1><p>Tu cuenta no tiene un perfil activo.</p><Link href="/">Volver al inicio</Link></section></main>;
 
   return (
-    <main className="lp-page">
+    <main className="lp-page lp-menus-screen">
       <AppHeader fullName={profile.full_name || session.user.email || "Usuario"} role={profile.role} onLogout={() => void supabase?.auth.signOut()} />
       <ModuleNavigation activeModule="menus" />
       <div className="lp-content">
@@ -179,8 +188,9 @@ export default function MenusPage() {
           {!form.items.length ? <div className="lp-week-empty"><ClipboardList size={26}/><strong>Aún no hay pases</strong><span>Añade recetas en el apartado anterior.</span></div> : <div className="lp-menu-items">{form.items.map((item,index)=><article className="lp-menu-item" key={item.recipe_id}><div className="lp-menu-item-order"><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,-1)} disabled={index===0} aria-label="Mover receta arriba"><ArrowUp size={15}/></button><span>{index+1}</span><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,1)} disabled={index===form.items.length-1} aria-label="Mover receta abajo"><ArrowDown size={15}/></button></div><div className="lp-menu-item-name"><strong>{item.recipe?.title || recipes.find(recipe=>recipe.id===item.recipe_id)?.title || "Receta"}</strong><small>{item.recipe?.servings || recipes.find(recipe=>recipe.id===item.recipe_id)?.servings || "—"} pax en la ficha original</small></div><label>Pase<select value={item.course} onChange={e=>changeItem(index,{course:e.target.value})}>{courses.map(course=><option key={course}>{course}</option>)}</select></label><button type="button" className="lp-icon-button lp-menu-remove" onClick={()=>removeItem(index)} aria-label="Quitar receta del menú"><Trash2 size={15}/></button></article>)}</div>}
           <div className="lp-recipe-form-actions"><button type="button" className="lp-button lp-secondary" onClick={closeForm}>Cancelar</button><button type="submit" className="lp-button lp-primary" disabled={saving}><Save size={16}/>{saving?"Guardando…":"Guardar menú"}</button></div>
         </form>}
-        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <section className="lp-menu-grid">{menus.map(menu=>{const items=[...(menu.menu_items||[])].sort((a,b)=>a.sort_order-b.sort_order);return <article className="lp-card lp-menu-card" key={menu.id}><div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status==="published"?"Publicado":"Borrador"}</span>{menu.theme_label && <span className="lp-menu-theme">{menu.theme_label}</span>}</div><h2>{menu.title}</h2><p>{menu.description || "Sin descripción"}</p><div className="lp-menu-course-list">{items.map((item,index)=><div key={item.id || item.recipe_id} className="lp-menu-course"><span>{item.course}</span><strong>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</strong></div>)}</div><div className="lp-menu-card-footer"><span>{items.length} {items.length===1?"receta":"recetas"} · {dateLabel(menu.created_at)}</span>{isAdmin && <div><button type="button" className="lp-button lp-secondary" onClick={()=>startEdit(menu)}><Edit3 size={14}/> Editar</button><button type="button" className="lp-icon-button" onClick={()=>void deleteMenu(menu)} aria-label={`Eliminar menú ${menu.title}`}><Trash2 size={15}/></button></div>}</div></article>})}</section>}
+        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <section className="lp-menu-grid">{menus.map(menu=>{const items=[...(menu.menu_items||[])].sort((a,b)=>a.sort_order-b.sort_order);return <article className="lp-card lp-menu-card" key={menu.id}><div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status==="published"?"Publicado":"Borrador"}</span>{menu.theme_label && <span className="lp-menu-theme">{menu.theme_label}</span>}</div><h2>{menu.title}</h2><p>{menu.description || "Sin descripción"}</p><div className="lp-menu-course-list">{items.map((item,index)=><div key={item.id || item.recipe_id} className="lp-menu-course"><span>{item.course}</span><strong>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</strong></div>)}</div><div className="lp-menu-card-footer"><span>{items.length} {items.length===1?"receta":"recetas"} · {dateLabel(menu.created_at)}</span>{isAdmin && <div><button type="button" className="lp-button lp-secondary" onClick={()=>setPrintMenuId(menu.id)}><Printer size={14}/> Imprimir menú</button>{isAdmin && <button type="button" className="lp-button lp-secondary" onClick={()=>startEdit(menu)}><Edit3 size={14}/> Editar</button>}{isAdmin && <button type="button" className="lp-icon-button" onClick={()=>void deleteMenu(menu)} aria-label={`Eliminar menú ${menu.title}`}><Trash2 size={15}/></button>}</div>}</div></article>})}</section>}
         <footer className="lp-footer">La Partida - Gestión de Cocina</footer>
+        {printMenuId && (() => { const menu = menus.find(item => item.id === printMenuId); if (!menu) return null; const items = [...(menu.menu_items || [])].sort((a,b) => a.sort_order-b.sort_order); return <section className="lp-menu-print-bundle" aria-hidden="true"><header><p className="lp-kicker">LA PARTIDA · MENÚ</p><h1>{menu.title}</h1>{menu.theme_label && <p className="lp-menu-print-theme">{menu.theme_label}</p>}{menu.description && <p className="lp-menu-print-description">{menu.description}</p>}</header><ol>{items.map((item,index) => <li key={item.id || item.recipe_id}><span>{item.course || "Pase"}</span><div><h2>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</h2>{item.recipes?.category && <p>{item.recipes.category}</p>}</div><strong>{index+1}</strong></li>)}</ol><footer>La Partida · {items.length} {items.length===1?"receta":"recetas"}</footer></section>; })()}
       </div>
     </main>
   );
