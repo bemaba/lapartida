@@ -4,13 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       confirm_apply:
-        description: "Escribe APPLY para aplicar todas las migraciones pendientes del repositorio"
+        description: "Escribe APPLY para aplicar solo las migraciones esperadas, si no hay otras pendientes"
         required: true
         type: choice
         options:
           - NO
           - APPLY
         default: NO
+  push:
+    branches:
+      - feature/production-events
+    paths:
+      - supabase/migrations/20261014090000_recipe_intermediate_types.sql
+      - supabase/migrations/20261014100000_production_events.sql
 
 permissions:
   contents: read
@@ -21,8 +27,8 @@ concurrency:
 
 jobs:
   migrate:
-    if: inputs.confirm_apply == 'APPLY'
-    name: Review and apply pending migrations
+    if: (github.event_name == 'workflow_dispatch' && inputs.confirm_apply == 'APPLY') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[apply-prod-migrations]'))
+    name: Review and apply intended Supabase migrations
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -38,21 +44,36 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
           test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing repository secret SUPABASE_DB_PASSWORD" && exit 1)
           supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Show migration history before applying
+      - name: Verify only intended migrations are pending
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase migration list --linked
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-before.txt
+          PENDING="$(awk -F'|' 'NR > 2 { local_version=$1; remote_version=$2; gsub(/[^0-9]/, "", local_version); gsub(/[^0-9]/, "", remote_version); if (length(local_version) == 14 && remote_version == "") print local_version }' /tmp/migrations-before.txt | sort)"
+          EXPECTED="$(printf '%s\n' 20261014090000 20261014100000 | sort)"
+          if [ "$PENDING" != "$EXPECTED" ]; then
+            echo "Safety stop: only versions 20261014090000 and 20261014100000 may be pending."
+            echo "Detected pending versions:"
+            printf '%s\n' "$PENDING"
+            exit 1
+          fi
 
-      - name: Apply pending migrations
+      - name: Apply intended migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push --linked
 
-      - name: Verify migration history
+      - name: Verify both migrations are applied
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase migration list --linked
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261014090000.*20261014090000' /tmp/migrations-after.txt >/dev/null
+          grep -E '20261014100000.*20261014100000' /tmp/migrations-after.txt >/dev/null
