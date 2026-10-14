@@ -121,7 +121,7 @@ export default function TeamPlanningPage() {
   function deleteShift(id:string) {
     const existing=shiftDrafts.find(s=>s.id===id)||shifts.find(s=>s.id===id);
     if(!existing)return;
-    if(existing.isNew){setShiftDrafts(prev=>prev.filter(s=>s.id!==id));return;}
+    if("isNew" in existing && existing.isNew){setShiftDrafts(prev=>prev.filter(s=>s.id!==id));return;}
     setShiftDrafts(prev=>[...prev.filter(s=>s.id!==id),{...existing,deleted:true}]);
     setNotice("Eliminación pendiente. Pulsa «Guardar planificación» para aplicarla.");
   }
