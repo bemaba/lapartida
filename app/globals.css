@@ -473,3 +473,10 @@
 @media(max-width:1000px){.lp-production-layout{grid-template-columns:1fr}.lp-production-event-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.lp-production-content{padding:20px 14px 36px}.lp-production-heading{display:grid}.lp-production-heading>.lp-button{justify-self:start}.lp-production-form{grid-template-columns:1fr}.lp-production-form-wide{grid-column:auto}.lp-production-event-list,.lp-production-event-detail,.lp-production-daily,.lp-production-form-card{padding:16px}.lp-production-event-items{grid-template-columns:1fr}.lp-production-task-controls{grid-template-columns:1fr 1fr}.lp-production-task-notes{grid-column:1/-1}.lp-production-task-main{display:grid}.lp-production-day-picker{align-items:stretch}.lp-production-day-picker>*{flex:1}.lp-production-event-actions>*{flex:1}.lp-production-event-actions label{min-width:100%}}
 @media print{.lp-module-nav-shell,.lp-module-nav-mobile-head,.lp-app-header,.lp-production-heading>.lp-button,.lp-production-tabs,.lp-production-event-list,.lp-production-event-actions,.lp-production-task-controls,.lp-production-day-picker,.lp-production-footnote,.lp-notice{display:none!important}.lp-production-content{display:block;padding:0}.lp-production-layout{display:block}.lp-card{box-shadow:none;border:0;padding:0}.lp-production-task{margin:0 0 12px;border:1px solid #ccc}.lp-production-recipe-snapshot[open]{display:block}.lp-production-recipe-snapshot{display:block}.lp-production-task-list{gap:8px}}
+
+
+/* Recipe ingredient selector: prevent long names/options from forcing horizontal overflow. */
+.lp-ingredient-row{min-width:0;grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1.1fr) 35px;box-sizing:border-box}
+.lp-ingredient-row>label{min-width:0;max-width:100%}
+.lp-ingredient-row select{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;text-overflow:ellipsis}
+.lp-recipe-source-warning,.lp-recipe-form-hint{padding:10px 12px;border:1px solid #eadfbd;border-radius:8px;background:#fffaf0;color:#765a23;font-size:12px;line-height:1.55}
