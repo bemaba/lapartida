@@ -575,7 +575,7 @@
 
 
 .lp-planning-cell-shifts{display:grid;gap:5px;min-width:88px}
-.lp-planning-add-shift{display:flex;align-items:center;justify-content:center;width:100%;min-height:27px;border:1px dashed #cbd9ce;border-radius:7px;background:transparent;color:var(--green);cursor:pointer;transition:background .15s,border-color .15s}
+.lp-planning-add-shift{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;min-height:30px;padding:5px 3px;border:1px dashed #b7cbbd;border-radius:7px;background:#fbfdfb;color:var(--green);font-size:10px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s}.lp-planning-add-shift span{font-size:10px}.lp-planning-add-shift:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .lp-planning-add-shift:hover{background:#f0f7f1;border-color:var(--green)}
 .lp-planning-add-shift:disabled,.lp-planning-quick-actions button:disabled{opacity:.5;cursor:wait}
 .lp-planning-quick-form{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:7px;border:1px solid #d7e6d9;border-radius:7px;background:#f8fbf8}
