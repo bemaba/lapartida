@@ -270,9 +270,9 @@ export default function ProductionPage() {
   if (session && profile && !profile.active) return <main className="lp-center"><section className="lp-card lp-config"><ChefHat size={28}/><h1>Cuenta desactivada</h1><p>Contacta con la administradora de La Partida.</p></section></main>;
 
   return (
-    <main className="app-shell lp-production-screen">
+    <main className="lp-production-screen">
       <ModuleNavigation activeModule="eventos" />
-      <div className="app-main">
+      <div className="lp-production-main">
         <AppHeader fullName={profile?.full_name || session?.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase?.auth.signOut(); window.location.href = "/"; }} />
         <div className="lp-production-content">
           <header className="lp-production-heading">
