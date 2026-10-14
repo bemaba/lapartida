@@ -493,3 +493,40 @@
 .lp-production-layout>*{min-width:0}
 @media(max-width:1000px){.lp-production-layout{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:680px){.lp-production-content{padding:20px 14px 36px}.lp-production-heading{display:grid}.lp-production-heading>.lp-button{justify-self:start;white-space:normal}}
+
+
+/* Team management */
+.lp-team-content{width:100%;min-width:0;box-sizing:border-box}
+.lp-team-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:22px 0}
+.lp-team-stat{display:flex;align-items:center;gap:14px;padding:20px;color:var(--green)}
+.lp-team-stat>div{display:grid;gap:3px}
+.lp-team-stat strong{font:800 24px Manrope,sans-serif;color:var(--ink)}
+.lp-team-stat span{font-size:12px;color:var(--muted)}
+.lp-team-invite,.lp-team-list{padding:24px;margin-bottom:20px;min-width:0}
+.lp-team-invite>.lp-card-title>svg{color:var(--green)}
+.lp-team-invite>p{font-size:13px;color:var(--muted);margin:8px 0 20px}
+.lp-team-invite-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:14px}
+.lp-team-invite-form label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#536158;min-width:0}
+.lp-team-invite-form input{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;background:#fff;padding:12px;font-size:13px;color:var(--ink)}
+.lp-team-invite-form>.lp-button{white-space:nowrap;min-height:42px}
+.lp-team-count{display:grid;place-items:center;min-width:32px;height:30px;border-radius:9px;background:var(--green-light);color:var(--green);font-size:12px;font-weight:800}
+.lp-team-table-wrap{width:100%;overflow-x:auto}
+.lp-team-table{width:100%;border-collapse:collapse;text-align:left}
+.lp-team-table th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;padding:12px 10px;border-bottom:1px solid var(--line)}
+.lp-team-table td{padding:14px 10px;border-bottom:1px solid var(--line);font-size:12px}
+.lp-team-table tbody tr:last-child td{border-bottom:0}
+.lp-team-person{display:flex;align-items:center;gap:11px;min-width:180px}
+.lp-team-person>span:last-child{display:grid;gap:4px;min-width:0}
+.lp-team-person strong{font-size:12px}
+.lp-team-person small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.lp-team-avatar{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:50%;background:var(--green-light);color:var(--green);font-size:11px;font-weight:800}
+.lp-team-status{display:inline-flex;padding:5px 9px;border-radius:99px;font-size:10px;font-weight:700;white-space:nowrap}
+.lp-team-status.active{background:#e8f2ec;color:#2b6b49}
+.lp-team-status.inactive{background:#f0f1ef;color:#747e77}
+.lp-team-action{padding:8px 10px;font-size:11px;white-space:nowrap}
+.lp-team-empty{display:grid;justify-items:center;gap:10px;padding:36px 12px;color:var(--muted);text-align:center}
+.lp-team-empty strong{color:var(--ink);font-size:14px}
+.lp-team-empty span{font-size:12px}
+.lp-team-footnote{font-size:11px;line-height:1.6;color:var(--muted);padding:0 2px 20px}
+@media(max-width:850px){.lp-team-invite-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.lp-team-invite-form>.lp-button{grid-column:1/-1;justify-self:start}}
+@media(max-width:600px){.lp-team-summary{grid-template-columns:1fr}.lp-team-invite,.lp-team-list{padding:16px}.lp-team-invite-form{grid-template-columns:1fr}.lp-team-invite-form>.lp-button{grid-column:auto}.lp-team-table th,.lp-team-table td{padding:12px 7px}}
