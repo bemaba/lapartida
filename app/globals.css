@@ -421,3 +421,55 @@
 .lp-recipe-type-tabs button.active{border-color:#d9e4d8;background:#fff;color:#28583a;box-shadow:0 2px 8px rgba(35,65,42,.06)}
 .lp-recipe-type-tabs button.active span{background:#e6f1e7;color:#28583a}
 @media(max-width:540px){.lp-recipe-type-tabs{display:grid;grid-template-columns:1fr}.lp-recipe-type-tabs button{justify-content:space-between}}
+
+/* Producción y eventos */
+.lp-production-content{width:min(1480px,100%);margin:0 auto;padding:28px 30px 48px;display:grid;gap:20px}
+.lp-production-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.lp-production-heading h1{margin:5px 0 8px;font:800 clamp(27px,3vw,36px) Manrope,sans-serif;letter-spacing:-1px}
+.lp-production-heading p,.lp-production-footnote{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.lp-production-tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.lp-production-tabs button{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--muted);font-weight:700}
+.lp-production-tabs button.active{background:var(--green-light);color:var(--green);border-color:#d7e7dc}
+.lp-production-tabs button span,.lp-production-count{display:inline-grid;place-items:center;min-width:26px;height:25px;padding:0 7px;border-radius:8px;background:#eef2ee;color:var(--green);font-size:11px;font-weight:800}
+.lp-production-form-card{padding:24px}
+.lp-production-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+.lp-production-form label,.lp-production-event-actions label,.lp-production-task-controls label,.lp-production-day-picker label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#526057}
+.lp-production-form input,.lp-production-form select,.lp-production-form textarea,.lp-production-event-actions select,.lp-production-task-controls input,.lp-production-task-controls select,.lp-production-day-picker input{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;background:white;padding:10px 11px;color:var(--ink);font:inherit;font-size:13px}
+.lp-production-form-wide{grid-column:1/-1}
+.lp-production-layout{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.8fr);gap:18px;align-items:start}
+.lp-production-event-list,.lp-production-event-detail,.lp-production-daily{padding:22px;min-width:0}
+.lp-production-event-items{display:grid;gap:8px;margin-top:18px}
+.lp-production-event-item{display:grid;gap:6px;text-align:left;padding:13px;border:1px solid var(--line);border-radius:11px;background:white;color:var(--ink)}
+.lp-production-event-item.active{border-color:#8ab59a;background:#f1f7f3;box-shadow:0 0 0 2px #e2efe6}
+.lp-production-event-item strong{font-size:14px;line-height:1.4}
+.lp-production-event-item>span{font-size:11px;color:var(--muted)}
+.lp-production-event-date{font-weight:800;color:var(--green)!important}
+.lp-production-event-detail>.lp-card-title p,.lp-production-daily>.lp-card-title p{font-size:12px;color:var(--muted);margin:6px 0 0}
+.lp-production-event-summary{margin:16px 0;padding:12px 14px;border-radius:10px;background:var(--paper);font-size:12px;line-height:1.6}
+.lp-production-event-summary p{margin:6px 0 0;color:var(--muted)}
+.lp-production-event-actions{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin:15px 0 20px}
+.lp-production-event-actions label{min-width:150px}
+.lp-production-event-actions .lp-button{min-height:39px}
+.lp-production-task-list{display:grid;gap:12px}
+.lp-production-task{padding:15px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0;break-inside:avoid}
+.lp-production-task-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.lp-production-task-title{min-width:0}
+.lp-production-task-title h3{margin:7px 0 4px;font:700 15px Manrope,sans-serif;line-height:1.4;overflow-wrap:anywhere}
+.lp-production-task-title p{margin:0;color:var(--muted);font-size:12px}
+.lp-production-quantity{font-weight:800;color:var(--green)!important}
+.lp-production-kind{display:inline-flex;padding:4px 7px;border-radius:6px;background:#e9f2ec;color:#2e6848;font-size:9px;text-transform:uppercase;letter-spacing:.5px;font-weight:800}
+.lp-production-kind.intermediate{background:#fff2df;color:#925c15}
+.lp-production-task-status{flex-shrink:0;padding:5px 8px;border-radius:7px;background:#f0f2f0;color:#667168;font-size:10px;font-weight:800}
+.lp-production-task-status.in_progress{background:#fff2df;color:#925c15}
+.lp-production-task-status.completed{background:#e2f2e8;color:#28613e}
+.lp-production-task-controls{display:grid;grid-template-columns:minmax(135px,.65fr) minmax(135px,.65fr) minmax(180px,1.5fr);gap:10px;margin-top:14px}
+.lp-production-recipe-snapshot{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;line-height:1.6}
+.lp-production-recipe-snapshot summary{cursor:pointer;color:var(--green);font-weight:700}
+.lp-production-recipe-snapshot p{margin:10px 0 4px}
+.lp-production-recipe-snapshot ul,.lp-production-recipe-snapshot ol{padding-left:20px;margin:5px 0}
+.lp-production-day-picker{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:16px 0 20px}
+.lp-production-day-picker label{min-width:160px}
+.lp-production-footnote{padding:0 2px;font-size:11px}
+@media(max-width:1000px){.lp-production-layout{grid-template-columns:1fr}.lp-production-event-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.lp-production-content{padding:20px 14px 36px}.lp-production-heading{display:grid}.lp-production-heading>.lp-button{justify-self:start}.lp-production-form{grid-template-columns:1fr}.lp-production-form-wide{grid-column:auto}.lp-production-event-list,.lp-production-event-detail,.lp-production-daily,.lp-production-form-card{padding:16px}.lp-production-event-items{grid-template-columns:1fr}.lp-production-task-controls{grid-template-columns:1fr 1fr}.lp-production-task-notes{grid-column:1/-1}.lp-production-task-main{display:grid}.lp-production-day-picker{align-items:stretch}.lp-production-day-picker>*{flex:1}.lp-production-event-actions>*{flex:1}.lp-production-event-actions label{min-width:100%}}
+@media print{.lp-module-nav-shell,.lp-module-nav-mobile-head,.lp-app-header,.lp-production-heading>.lp-button,.lp-production-tabs,.lp-production-event-list,.lp-production-event-actions,.lp-production-task-controls,.lp-production-day-picker,.lp-production-footnote,.lp-notice{display:none!important}.lp-production-content{display:block;padding:0}.lp-production-layout{display:block}.lp-card{box-shadow:none;border:0;padding:0}.lp-production-task{margin:0 0 12px;border:1px solid #ccc}.lp-production-recipe-snapshot[open]{display:block}.lp-production-recipe-snapshot{display:block}.lp-production-task-list{gap:8px}}
