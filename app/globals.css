@@ -553,7 +553,7 @@
 .lp-planning-grid tbody th small{font-size:9px;color:var(--muted);font-weight:500;margin-top:4px}
 .lp-planning-shift{position:relative;display:grid;gap:4px;min-width:88px;margin:0 0 5px;padding:7px;border:1px solid #d7e6d9;border-radius:7px;background:#f0f7f1;color:var(--green);font-size:10px}
 .lp-planning-shift strong{font-size:10px;white-space:nowrap}.lp-planning-shift>span{font-size:9px}.lp-planning-shift small{font-size:9px;color:var(--muted);overflow-wrap:anywhere}
-.lp-planning-shift button{position:absolute;right:3px;top:3px;border:0;background:transparent;color:#9d5448;cursor:pointer;padding:2px}
+.lp-planning-shift-actions{position:absolute;right:3px;top:3px;display:flex;gap:2px}.lp-planning-shift-actions button{position:static;border:0;background:transparent;color:#9d5448;cursor:pointer;padding:2px}.lp-planning-shift-actions button:first-child{color:var(--green)}
 .lp-planning-hours{font-size:11px;font-weight:800;white-space:nowrap;color:var(--green)}
 .lp-planning-footnote{font-size:11px;line-height:1.6;color:var(--muted);margin:14px 0 0}
 .lp-planning-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;align-items:end;margin-top:20px}
