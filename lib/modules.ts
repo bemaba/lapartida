@@ -13,6 +13,6 @@ export const appModules: AppModule[] = [
   { id: "recetas", label: "Recetas", description: "Recetario, ingredientes, cantidades y alérgenos.", icon: "book", enabled: true },
   { id: "menus", label: "Menús", description: "Compón menús con recetas existentes, organizadas por pases.", icon: "utensils", enabled: true },
   { id: "eventos", label: "Producción y eventos", description: "Planifica servicios, elaboraciones y tareas por día.", icon: "calendar", enabled: true },
-  { id: "equipo", label: "Equipo y turnos", description: "Personal, disponibilidad y planificación de turnos.", icon: "users", enabled: false },
+  { id: "equipo", label: "Equipo", description: "Invita empleados y gestiona las cuentas del equipo.", icon: "users", enabled: true },
   { id: "compras", label: "Compras y stock", description: "Productos, proveedores e inventario.", icon: "package", enabled: false },
 ];
