@@ -88,8 +88,8 @@ export default function TeamPlanningPage() {
   useEffect(()=>{
     if(!supabase) { setLoading(false); return; }
     let alive=true;
-    supabase.auth.getSession().then(({data})=>{if(alive)setSession(data.session);});
-    const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);});
+    supabase.auth.getSession().then(({data})=>{if(alive){setSession(data.session);if(!data.session)setLoading(false);}});
+    const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{setSession(next);if(!next)setLoading(false);});
     return ()=>{alive=false;listener.subscription.unsubscribe();};
   },[]);
   useEffect(()=>{if(session) void load();},[session,load]);
