@@ -45,6 +45,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const categories = ["Entrante", "Principal", "Postre", "Aperitivo", "Guarnición", "Salsa", "Base", "Panadería", "Otro"];
+const finalCategories = ["Entrante", "Principal", "Postre", "Aperitivo", "Guarnición", "Otro"];
+const intermediateCategories = ["Salsa", "Base", "Guarnición", "Panadería", "Preparación", "Otro"];
 const cuisines = ["Mediterránea", "Catalana", "Española", "Italiana", "Asiática", "Latinoamericana", "Francesa", "Fusión", "Otra"];
 const allergenOptions = ["Gluten", "Crustáceos", "Huevos", "Pescado", "Cacahuetes", "Soja", "Leche", "Frutos de cáscara", "Apio", "Mostaza", "Sésamo", "Sulfitos", "Altramuces", "Moluscos"];
 const dietaryOptions = ["Vegetariana", "Vegana", "Sin gluten", "Sin lactosa"];
@@ -61,8 +63,8 @@ const initialForm = () => ({
 type PrintRecipe = { recipe: Recipe; quantityFactor: number };
 
 function extractLeadingQuantity(value: string) {
-  const match = value.trim().match(/^(\\d+(?:[.,]\\d+)?\\s*(?:kg|mg|g|gr|gramos?|l|ml|cl|dl|unidades?|uds?))\\s+(.+)$/i);
-  return match ? match[1].replace(/\\s+/g, " ").trim() : "";
+  const match = value.trim().match(/^(\d+(?:[.,]\d+)?\s*(?:kg|mg|g|gr|gramos?|l|ml|cl|dl|unidades?|uds?))\s+(.+)$/i);
+  return match ? match[1].replace(/\s+/g, " ").trim() : "";
 }
 function normalizeUnit(unit: string) {
   const value = unit.trim().toLocaleLowerCase("es").replace(/\./g, "");
@@ -536,7 +538,7 @@ export default function RecipesPage() {
               <label className="wide">Descripción<textarea rows={2} value={form.description} onChange={e => setForm({...form,description:e.target.value})} placeholder="Describe el plato y qué lo hace especial"/></label>
               <div className="lp-recipe-custom-field"><label>Tipo de cocina<select value={form.cuisine_type} onChange={e => setForm({...form,cuisine_type:e.target.value,cuisineOtherText:e.target.value === "Otra" ? form.cuisineOtherText : ""})}>{cuisines.map(item=><option key={item}>{item}</option>)}</select></label>{form.cuisine_type === "Otra" && <label>Especifica el tipo de cocina<input value={form.cuisineOtherText} onChange={e=>setForm({...form,cuisineOtherText:e.target.value})} placeholder="Ej. Peruana, mexicana…"/></label>}</div>
               <label>Tipo de ficha<select value={form.recipe_type} onChange={e => setForm({...form,recipe_type:e.target.value as "final"|"intermediate"})}><option value="final">Plato final</option><option value="intermediate">Elaboración intermedia</option></select></label>
-              <label>Categoría<select value={form.category} onChange={e => setForm({...form,category:e.target.value})}>{categories.map(item=><option key={item}>{item}</option>)}</select></label>
+              <label>Categoría<select value={form.category} onChange={e => setForm({...form,category:e.target.value})}>{Array.from(new Set([...(form.recipe_type === "intermediate" ? intermediateCategories : finalCategories), ...(form.category && !(form.recipe_type === "intermediate" ? intermediateCategories : finalCategories).includes(form.category) ? [form.category] : [])])).map(item=><option key={item}>{item}</option>)}</select></label>
               {form.recipe_type === "intermediate" && <><label>Rendimiento obtenido *<input required type="number" min="0.001" step="any" value={form.yield_quantity} onChange={e => setForm({...form,yield_quantity:e.target.value})} placeholder="Ej. 3"/></label><label>Unidad del rendimiento *<select required value={form.yield_unit} onChange={e => setForm({...form,yield_unit:e.target.value})}><option value="g">g (gramos)</option><option value="kg">kg (kilogramos)</option><option value="ml">ml (mililitros)</option><option value="l">l (litros)</option><option value="ud">unidades</option><option value="racion">raciones</option></select></label></>}
               <label>Raciones (pax) *<input required type="number" min="1" max="100000" value={form.servings} onChange={e => setForm({...form,servings:e.target.value})}/></label>
               <label>Dificultad<select value={form.difficulty} onChange={e => setForm({...form,difficulty:e.target.value as "Fácil"|"Media"|"Alta"})}><option>Fácil</option><option>Media</option><option>Alta</option></select></label>
@@ -564,7 +566,7 @@ export default function RecipesPage() {
                 <label>Ingrediente<input value={item.name} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,name:e.target.value}:row)}))} placeholder="Ej. Harina"/></label>
                 <label>Cantidad y unidad<input value={item.quantity} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,quantity:e.target.value}:row)}))} placeholder="500 g"/></label>
                 <label>Notas<input value={item.note} onChange={e=>setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,note:e.target.value}:row)}))} placeholder="Tamizada, picado…"/></label>
-                <label>Elaboración intermedia<select value={item.recipe_id || ""} onChange={e=>{const recipeId=e.target.value || null;const linked=recipes.find(recipe=>recipe.id===recipeId);setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,recipe_id:recipeId,name:linked?.title || row.name}:row)}));}}><option value="">Ingrediente sin vincular</option>{recipes.filter(recipe=>recipe.recipe_type==="intermediate" && recipe.id!==(editing?.id || "") && recipe.status!=="archived" && !wouldCreateCycle(editing?.id || null,recipe.id,recipes)).map(recipe=><option key={recipe.id} value={recipe.id}>{recipe.title}{recipe.status==="draft"?" (borrador)":""}{recipe.yield_quantity ? ` · ${recipe.yield_quantity} ${recipe.yield_unit}` : ""}</option>)}</select></label>
+                <label>Elaboración intermedia<select value={item.recipe_id || ""} onChange={e=>{const recipeId=e.target.value || null;const linked=recipes.find(recipe=>recipe.id===recipeId);setForm(current=>({...current,ingredients:current.ingredients.map((row,i)=>i===index?{...row,recipe_id:recipeId,name:linked?.title || row.name}:row)}));}}><option value="">No es una elaboración intermedia</option>{recipes.filter(recipe=>recipe.recipe_type==="intermediate" && recipe.id!==(editing?.id || "") && recipe.status!=="archived" && !wouldCreateCycle(editing?.id || null,recipe.id,recipes)).map(recipe=><option key={recipe.id} value={recipe.id}>{recipe.title}{recipe.status==="draft"?" (borrador)":""}{recipe.yield_quantity ? ` · ${recipe.yield_quantity} ${recipe.yield_unit}` : ""}</option>)}</select></label>
                 <button type="button" className="lp-icon-button" onClick={()=>setForm(current=>({...current,ingredients:current.ingredients.filter((_,i)=>i!==index).length?current.ingredients.filter((_,i)=>i!==index):[emptyIngredient()]}))} aria-label="Eliminar ingrediente"><X size={15}/></button>
               </div>)}
               <button type="button" className="lp-button lp-secondary lp-add-row" onClick={()=>setForm(current=>({...current,ingredients:[...current.ingredients,emptyIngredient()]}))}><Plus size={15}/> Añadir ingrediente</button>
