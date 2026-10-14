@@ -270,11 +270,10 @@ export default function ProductionPage() {
   if (session && profile && !profile.active) return <main className="lp-center"><section className="lp-card lp-config"><ChefHat size={28}/><h1>Cuenta desactivada</h1><p>Contacta con la administradora de La Partida.</p></section></main>;
 
   return (
-    <main className="lp-production-screen">
+    <main className="lp-page lp-production-screen">
+      <AppHeader fullName={profile?.full_name || session?.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase?.auth.signOut(); window.location.href = "/"; }} />
       <ModuleNavigation activeModule="eventos" />
-      <div className="lp-production-main">
-        <AppHeader fullName={profile?.full_name || session?.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase?.auth.signOut(); window.location.href = "/"; }} />
-        <div className="lp-production-content">
+      <div className="lp-production-content">
           <header className="lp-production-heading">
             <div><div className="lp-kicker">OPERATIVA DE COCINA</div><h1>Producción y eventos</h1><p>Planifica los eventos y reparte las elaboraciones entre los días previos al servicio.</p></div>
             {isAdmin && <button className="lp-button lp-primary" onClick={() => { setFormOpen(value => !value); setNotice(""); }}><Plus size={16}/>{formOpen ? "Cerrar formulario" : "Nuevo evento"}</button>}
@@ -333,7 +332,6 @@ export default function ProductionPage() {
               })}</div>}
           </section>}
           <p className="lp-production-footnote">Las cantidades se calculan a partir de las recetas y el menú. Las tareas guardan una copia de la ficha técnica usada al generar el plan, para que las modificaciones posteriores de una receta no cambien el evento sin revisión. No se calculan precios ni se generan pedidos.</p>
-        </div>
       </div>
     </main>
   );

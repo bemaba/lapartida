@@ -482,10 +482,14 @@
 .lp-recipe-source-warning,.lp-recipe-form-hint{padding:10px 12px;border:1px solid #eadfbd;border-radius:8px;background:#fffaf0;color:#765a23;font-size:12px;line-height:1.55}
 
 
-/* Dedicated full-width shell for the events module */
+/* Events use the same shared page/header/navigation structure as Menus. */
 .lp-production-screen{display:flex;flex-direction:column;min-height:100vh;width:100%;min-width:0;overflow-x:clip}
-.lp-production-screen>.lp-module-nav-shell{position:relative;width:100%;flex:0 0 auto}
-.lp-production-main{width:100%;min-width:0;flex:1}
-.lp-production-main>.lp-app-header{width:100%}
-.lp-production-main>.lp-production-content{width:100%;max-width:1480px;margin-inline:auto;padding:32px clamp(24px,4vw,56px) 48px}
-@media(max-width:680px){.lp-production-main>.lp-production-content{padding:20px 14px 36px}}
+.lp-production-screen>.lp-app-header,.lp-production-screen>.lp-module-nav-shell{width:100%;flex:0 0 auto}
+.lp-production-content{width:100%;max-width:1480px;min-width:0;box-sizing:border-box;margin-inline:auto;padding:32px clamp(24px,4vw,56px) 48px}
+.lp-production-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;min-width:0}
+.lp-production-heading>div{min-width:0}
+.lp-production-heading>.lp-button{flex:0 0 auto;max-width:100%;white-space:nowrap}
+.lp-production-layout{width:100%;min-width:0;grid-template-columns:minmax(0,.85fr) minmax(0,1.5fr)}
+.lp-production-layout>*{min-width:0}
+@media(max-width:1000px){.lp-production-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:680px){.lp-production-content{padding:20px 14px 36px}.lp-production-heading{display:grid}.lp-production-heading>.lp-button{justify-self:start;white-space:normal}}
