@@ -119,9 +119,10 @@ export default function TeamPlanningPage() {
   }
 
   function deleteShift(id:string) {
-    const existing=shiftDrafts.find(s=>s.id===id)||shifts.find(s=>s.id===id);
+    const draft=shiftDrafts.find(s=>s.id===id);
+    if(draft?.isNew){setShiftDrafts(prev=>prev.filter(s=>s.id!==id));return;}
+    const existing=draft||shifts.find(s=>s.id===id);
     if(!existing)return;
-    if("isNew" in existing && existing.isNew){setShiftDrafts(prev=>prev.filter(s=>s.id!==id));return;}
     setShiftDrafts(prev=>[...prev.filter(s=>s.id!==id),{...existing,deleted:true}]);
     setNotice("Eliminación pendiente. Pulsa «Guardar planificación» para aplicarla.");
   }
