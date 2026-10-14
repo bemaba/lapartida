@@ -42,8 +42,8 @@ export default function TeamPlanningPage() {
   const [quickStart,setQuickStart] = useState("08:00");
   const [quickEnd,setQuickEnd] = useState("16:00");
   const [shiftDate,setShiftDate] = useState(dateKey(new Date()));
-  const [shiftStart,setShiftStart] = useState("09:00");
-  const [shiftEnd,setShiftEnd] = useState("17:00");
+  const [shiftStart,setShiftStart] = useState("08:00");
+  const [shiftEnd,setShiftEnd] = useState("16:00");
   const [shiftType,setShiftType] = useState<Shift["shift_type"]>("continuous");
   const [shiftOvernight,setShiftOvernight] = useState(false);
   const [shiftNotes,setShiftNotes] = useState("");
