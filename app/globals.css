@@ -605,6 +605,16 @@
   .lp-production-screen .lp-production-task-controls,
   .lp-production-screen .lp-production-footnote { display: none !important; }
   .lp-production-screen .lp-production-task { break-inside: avoid; page-break-inside: avoid; }
+  /* Always include saved recipe details and preparation steps in the printed event plan, even when the accordion is closed on screen. */
+  .lp-production-screen .lp-production-recipe-snapshot { display: block !important; }
+  .lp-production-screen .lp-production-recipe-snapshot > summary { display: none !important; }
+  .lp-production-screen .lp-production-recipe-snapshot:not([open]) > :not(summary) { display: block !important; }
+  .lp-production-screen .lp-production-recipe-snapshot p,
+  .lp-production-screen .lp-production-recipe-snapshot ul,
+  .lp-production-screen .lp-production-recipe-snapshot ol { display: block !important; }
+  .lp-production-screen .lp-production-recipe-snapshot li { display: list-item !important; }
+  .lp-production-screen .lp-production-recipe-snapshot { break-inside: auto !important; page-break-inside: auto !important; }
+
 
   .lp-menus-screen > :not(.lp-content) { display: none !important; }
   .lp-menus-screen .lp-content > :not(.lp-menu-print-bundle) { display: none !important; }
