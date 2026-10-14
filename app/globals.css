@@ -423,7 +423,7 @@
 @media(max-width:540px){.lp-recipe-type-tabs{display:grid;grid-template-columns:1fr}.lp-recipe-type-tabs button{justify-content:space-between}}
 
 /* Producción y eventos */
-.lp-production-content{width:min(1480px,100%);margin:0 auto;padding:28px 30px 48px;display:grid;gap:20px}
+.lp-production-content{width:min(1480px,100%);margin:0 auto;padding:32px clamp(24px,4vw,56px) 48px;display:grid;gap:22px;box-sizing:border-box}
 .lp-production-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
 .lp-production-heading h1{margin:5px 0 8px;font:800 clamp(27px,3vw,36px) Manrope,sans-serif;letter-spacing:-1px}
 .lp-production-heading p,.lp-production-footnote{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
