@@ -113,7 +113,7 @@ export default function TeamPlanningPage() {
   function saveQuickShift(event:FormEvent, employeeId:string, day:string) {
     event.preventDefault();
     const existing=editingShiftId?shiftDrafts.find(s=>s.id===editingShiftId)||shifts.find(s=>s.id===editingShiftId):null;
-    const draft:ShiftDraft={id:existing?.id||"draft-"+crypto.randomUUID(),user_id:employeeId,shift_date:day,starts_at:quickStart,ends_at:quickEnd,ends_next_day:existing?.ends_next_day||false,shift_type:existing?.shift_type||"continuous",notes:existing?.notes||"",isNew:(existing && "isNew" in existing ? existing.isNew : false)||!existing};
+    const draft:ShiftDraft={id:existing?.id||"draft-"+crypto.randomUUID(),user_id:employeeId,shift_date:day,starts_at:quickStart,ends_at:quickEnd,ends_next_day:existing?.ends_next_day||false,shift_type:existing?.shift_type||"continuous",notes:existing?.notes||"",isNew:existing ? ("isNew" in existing ? Boolean(existing.isNew) : false) : true};
     setShiftDrafts(prev=>[...prev.filter(s=>s.id!==draft.id),draft]);
     setQuickAddCell(null);setEditingShiftId(null);setNotice("Cambio pendiente. Pulsa «Guardar planificación» para aplicarlo todo.");
   }
