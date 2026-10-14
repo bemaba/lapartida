@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Session, createClient } from "@supabase/supabase-js";
-import { CalendarDays, ChevronLeft, ChevronRight, Palmtree, Plus, Save, Trash2, Check, X, Settings2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Palmtree, Plus, Save, Trash2, Check, X, Settings2, Pencil } from "lucide-react";
 import Link from "next/link";
 import AppHeader from "@/components/app-header";
 import ModuleNavigation from "@/components/module-navigation";
@@ -37,6 +37,7 @@ export default function TeamPlanningPage() {
   const [saving,setSaving] = useState(false);
   const [notice,setNotice] = useState("");
   const [selectedEmployee,setSelectedEmployee] = useState("");
+  const [editingShiftId,setEditingShiftId] = useState<string|null>(null);
   const [shiftDate,setShiftDate] = useState(dateKey(new Date()));
   const [shiftStart,setShiftStart] = useState("09:00");
   const [shiftEnd,setShiftEnd] = useState("17:00");
@@ -108,8 +109,8 @@ export default function TeamPlanningPage() {
 
   async function saveShift(event:FormEvent) {
     event.preventDefault();setSaving(true);setNotice("");
-    try { await request("/api/team/schedules","POST",{user_id:selectedEmployee,shift_date:shiftDate,starts_at:shiftStart,ends_at:shiftEnd,ends_next_day:shiftOvernight,shift_type:shiftType,notes:shiftNotes});
-      setNotice("Turno guardado.");setShiftNotes("");await load();
+    try { await request("/api/team/schedules",editingShiftId?"PATCH":"POST",{...(editingShiftId?{id:editingShiftId}:{}),user_id:selectedEmployee,shift_date:shiftDate,starts_at:shiftStart,ends_at:shiftEnd,ends_next_day:shiftOvernight,shift_type:shiftType,notes:shiftNotes});
+      setNotice(editingShiftId?"Turno actualizado.":"Turno guardado.");setEditingShiftId(null);setShiftNotes("");await load();
     } catch(e) {setNotice(e instanceof Error?e.message:"No se pudo guardar el turno.");}
     finally {setSaving(false);}
   }
@@ -157,10 +158,10 @@ export default function TeamPlanningPage() {
       {tab==="schedule"&&<>
         <section className="lp-card lp-planning-week">
           <div className="lp-planning-weekbar"><button type="button" className="lp-icon-button" aria-label="Semana anterior" onClick={()=>setWeekStart(addDays(weekStart,-7))}><ChevronLeft size={18}/></button><div><h2>Planificación semanal</h2><p>{titleRange}</p></div><button type="button" className="lp-icon-button" aria-label="Semana siguiente" onClick={()=>setWeekStart(addDays(weekStart,7))}><ChevronRight size={18}/></button><button type="button" className="lp-button lp-secondary" onClick={()=>setWeekStart(mondayOf(new Date()))}>Esta semana</button></div>
-          {loading?<p className="lp-muted">Cargando horarios…</p>:<div className="lp-planning-grid-wrap"><table className="lp-planning-grid"><thead><tr><th>Equipo</th>{days.map(d=><th key={d}>{dayLabel(d)}</th>)}<th>Horas</th></tr></thead><tbody>{employees.map(employee=><tr key={employee.user_id}><th><span>{employee.full_name}</span>{isAdmin&&<small>{employee.role==="admin"?"Administración":"Empleado"}</small>}</th>{days.map(day=><td key={day}>{shifts.filter(s=>s.user_id===employee.user_id&&s.shift_date===day).map(s=><div className="lp-planning-shift" key={s.id}><strong>{timeLabel(s.starts_at)}–{timeLabel(s.ends_at)}{s.ends_next_day?" +1":""}</strong><span>{typeText[s.shift_type]}</span>{s.notes&&<small>{s.notes}</small>}{isAdmin&&<button type="button" aria-label="Eliminar turno" disabled={saving} onClick={()=>void deleteShift(s.id)}><Trash2 size={12}/></button>}</div>)}</td>)}<td className="lp-planning-hours">{weekHours(employee.user_id)} h</td></tr>)}</tbody></table></div>}
+          {loading?<p className="lp-muted">Cargando horarios…</p>:<div className="lp-planning-grid-wrap"><table className="lp-planning-grid"><thead><tr><th>Equipo</th>{days.map(d=><th key={d}>{dayLabel(d)}</th>)}<th>Horas</th></tr></thead><tbody>{employees.map(employee=><tr key={employee.user_id}><th><span>{employee.full_name}</span>{isAdmin&&<small>{employee.role==="admin"?"Administración":"Empleado"}</small>}</th>{days.map(day=><td key={day}>{shifts.filter(s=>s.user_id===employee.user_id&&s.shift_date===day).map(s=><div className="lp-planning-shift" key={s.id}><strong>{timeLabel(s.starts_at)}–{timeLabel(s.ends_at)}{s.ends_next_day?" +1":""}</strong><span>{typeText[s.shift_type]}</span>{s.notes&&<small>{s.notes}</small>}{isAdmin&&<><button type="button" aria-label="Editar turno" disabled={saving} onClick={()=>{setEditingShiftId(s.id);setSelectedEmployee(s.user_id);setShiftDate(s.shift_date);setShiftStart(timeLabel(s.starts_at));setShiftEnd(timeLabel(s.ends_at));setShiftOvernight(s.ends_next_day);setShiftType(s.shift_type);setShiftNotes(s.notes||"");setTab("schedule");}}><Pencil size={12}/></button><button type="button" aria-label="Eliminar turno" disabled={saving} onClick={()=>void deleteShift(s.id)}><Trash2 size={12}/></button></>}</div>)}</td>)}<td className="lp-planning-hours">{weekHours(employee.user_id)} h</td></tr>)}</tbody></table></div>}
           <p className="lp-planning-footnote">Todo el personal activo puede consultar estos horarios. Solo administración puede crearlos o modificarlos. Los turnos partidos se registran como dos tramos independientes en el mismo día.</p>
         </section>
-        {isAdmin&&<section className="lp-card lp-planning-form-card"><div className="lp-card-title"><div><span className="lp-kicker">PLANIFICACIÓN MANUAL</span><h2>Añadir turno</h2></div><Plus size={21}/></div><form className="lp-planning-form" onSubmit={saveShift}>
+        {isAdmin&&<section className="lp-card lp-planning-form-card"><div className="lp-card-title"><div><span className="lp-kicker">PLANIFICACIÓN MANUAL</span><h2>{editingShiftId?"Editar turno":"Añadir turno"}</h2></div><Plus size={21}/></div><form className="lp-planning-form" onSubmit={saveShift}>
           <label>Empleado<select required value={selectedEmployee} onChange={e=>setSelectedEmployee(e.target.value)}>{employees.map(e=><option key={e.user_id} value={e.user_id}>{e.full_name}</option>)}</select></label>
           <label>Día<input type="date" required value={shiftDate} onChange={e=>setShiftDate(e.target.value)}/></label>
           <label>Tipo de jornada<select value={shiftType} onChange={e=>setShiftType(e.target.value as Shift["shift_type"])}><option value="continuous">Continua</option><option value="split">Partida (añade cada tramo)</option><option value="variable">Variable por día</option></select></label>
@@ -168,7 +169,7 @@ export default function TeamPlanningPage() {
           <label>Fin<input type="time" required value={shiftEnd} onChange={e=>setShiftEnd(e.target.value)}/></label>
           <label className="lp-planning-check"><input type="checkbox" checked={shiftOvernight} onChange={e=>setShiftOvernight(e.target.checked)}/> Termina al día siguiente</label>
           <label className="lp-planning-wide">Notas (opcional)<input maxLength={500} value={shiftNotes} onChange={e=>setShiftNotes(e.target.value)} placeholder="Ej. servicio de evento"/></label>
-          <button type="submit" className="lp-button lp-primary" disabled={saving||!selectedEmployee}><Save size={15}/>{saving?"Guardando…":"Guardar turno"}</button>
+          <button type="submit" className="lp-button lp-primary" disabled={saving||!selectedEmployee}><Save size={15}/>{saving?"Guardando…":editingShiftId?"Guardar cambios":"Guardar turno"}</button>{editingShiftId&&<button type="button" className="lp-button lp-secondary" onClick={()=>{setEditingShiftId(null);setShiftNotes("");}}>Cancelar edición</button>}
         </form></section>}
       </>}
       {tab==="leave"&&<div className="lp-planning-leave-layout">
