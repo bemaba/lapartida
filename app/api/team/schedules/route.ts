@@ -62,6 +62,34 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ shift: data }, { status: 201 });
 }
 
+
+export async function PATCH(request: NextRequest) {
+  const auth = await authorize(request);
+  if ("response" in auth) return auth.response;
+  if (auth.user.role !== "admin") return NextResponse.json({ error: "Solo administración puede editar horarios." }, { status: 403 });
+  let body: Record<string, unknown>;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Solicitud no válida." }, { status: 400 }); }
+  const id = typeof body.id === "string" ? body.id : "";
+  const userId = typeof body.user_id === "string" ? body.user_id : "";
+  const date = typeof body.shift_date === "string" ? body.shift_date : "";
+  const start = typeof body.starts_at === "string" ? body.starts_at : "";
+  const end = typeof body.ends_at === "string" ? body.ends_at : "";
+  const type = body.shift_type;
+  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  const overnight = body.ends_next_day === true;
+  if (!id || !userId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end) || start === end || !["continuous","split","variable"].includes(String(type)) || notes.length > 500) {
+    return NextResponse.json({ error: "Revisa la fecha, el tipo de jornada y las horas." }, { status: 400 });
+  }
+  const { data: target, error: targetError } = await auth.admin.from("profiles").select("user_id").eq("user_id", userId).eq("active", true).maybeSingle();
+  if (targetError || !target) return NextResponse.json({ error: "El empleado no existe o está inactivo." }, { status: 400 });
+  const { data, error } = await auth.admin.from("scheduled_shifts").update({
+    user_id: userId, shift_date: date, starts_at: start, ends_at: end, ends_next_day: overnight,
+    shift_type: type, notes, updated_at: new Date().toISOString()
+  }).eq("id", id).select("*").maybeSingle();
+  if (error || !data) return NextResponse.json({ error: "No se pudo actualizar el turno." }, { status: 500 });
+  return NextResponse.json({ shift: data });
+}
+
 export async function DELETE(request: NextRequest) {
   const auth = await authorize(request);
   if ("response" in auth) return auth.response;
