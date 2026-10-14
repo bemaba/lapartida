@@ -23,7 +23,7 @@ export default function ModuleNavigation({ activeModule = "fichaje" }: ModuleNav
         {appModules.filter((module) => module.id !== "fichaje").map((module) => {
           const Icon = icons[module.icon];
           const active = module.id === activeModule;
-          const href = module.id === "recetas" ? "/recetas" : module.id === "menus" ? "/menus" : module.id === "eventos" ? "/eventos" : "/";
+          const href = module.id === "recetas" ? "/recetas" : module.id === "menus" ? "/menus" : module.id === "eventos" ? "/eventos" : module.id === "equipo" ? "/equipo" : "/";
           const contents = (
             <>
               <Icon size={17} aria-hidden="true" />
