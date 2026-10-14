@@ -584,3 +584,40 @@
 .lp-planning-quick-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:5px}
 .lp-planning-quick-actions button{display:grid;place-items:center;width:25px;height:24px;border:1px solid var(--line);border-radius:5px;background:white;color:var(--green);cursor:pointer}
 .lp-planning-quick-actions button:last-child{color:#9d5448}
+
+
+/* Reliable, content-only print layouts for menus, recipes and event plans. */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  .lp-recipes-screen > :not(.lp-recipe-print-bundle) { display: none !important; }
+  .lp-recipes-screen .lp-recipe-print-bundle { display: block !important; position: static !important; visibility: visible !important; }
+  .lp-recipes-screen .lp-recipe-print-bundle * { visibility: visible !important; }
+
+  .lp-production-screen, .lp-production-screen * { visibility: visible !important; }
+  .lp-production-screen > :not(.lp-production-content) { display: none !important; }
+  .lp-production-content > :not(.lp-production-layout) { display: none !important; }
+  .lp-production-layout > .lp-production-event-list { display: none !important; }
+  .lp-production-layout > .lp-production-event-detail { display: block !important; width: 100% !important; }
+  .lp-production-event-detail > .lp-card-title { display: block !important; }
+  .lp-production-event-detail > .lp-production-event-summary { display: block !important; }
+  .lp-production-event-detail > .lp-production-task-list { display: grid !important; }
+  .lp-production-screen .lp-production-event-actions,
+  .lp-production-screen .lp-production-task-controls,
+  .lp-production-screen .lp-production-footnote { display: none !important; }
+  .lp-production-screen .lp-production-task { break-inside: avoid; page-break-inside: avoid; }
+
+  .lp-menus-screen > :not(.lp-content) { display: none !important; }
+  .lp-menus-screen .lp-content > :not(.lp-menu-print-bundle) { display: none !important; }
+  .lp-menus-screen .lp-menu-print-bundle { display: block !important; visibility: visible !important; color: #111 !important; }
+  .lp-menus-screen .lp-menu-print-bundle * { visibility: visible !important; }
+  .lp-menu-print-bundle h1 { font-size: 26pt; margin: 0 0 8mm; }
+  .lp-menu-print-theme { font-size: 12pt; font-weight: 700; }
+  .lp-menu-print-description { margin: 0 0 8mm; line-height: 1.5; }
+  .lp-menu-print-bundle ol { list-style: none; margin: 0; padding: 0; }
+  .lp-menu-print-bundle li { display: grid; grid-template-columns: 25mm 1fr 8mm; gap: 5mm; align-items: start; padding: 5mm 0; border-bottom: 1px solid #ddd; break-inside: avoid; }
+  .lp-menu-print-bundle li > span { font-size: 10pt; color: #555; }
+  .lp-menu-print-bundle li h2 { margin: 0; font-size: 14pt; }
+  .lp-menu-print-bundle li p { margin: 2mm 0 0; font-size: 10pt; color: #555; }
+  .lp-menu-print-bundle li > strong { color: #555; }
+  .lp-menu-print-bundle > footer { margin-top: 10mm; font-size: 9pt; color: #555; }
+}
