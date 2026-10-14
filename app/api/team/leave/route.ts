@@ -74,6 +74,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
   if (auth.user.role !== "admin") return NextResponse.json({ error: "Solo administración puede aprobar o rechazar vacaciones." }, { status: 403 });
+  if (current.user_id === auth.user.user_id) return NextResponse.json({ error: "No puedes aprobar ni rechazar tu propia solicitud." }, { status: 403 });
   if (current.status !== "pending") return NextResponse.json({ error: "Solo se pueden revisar solicitudes pendientes." }, { status: 409 });
   const { error } = await auth.admin.from("leave_requests").update({
     status, review_note: reviewNote, reviewed_by: auth.user.user_id, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString()
