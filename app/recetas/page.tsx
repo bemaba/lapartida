@@ -188,7 +188,7 @@ export default function RecipesPage() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [recipeView, setRecipeView] = useState<"final" | "intermediate">("final");
-  const [statusFilter, setStatusFilter] = useState("available");
+  const [statusFilter, setStatusFilter] = useState("published");
   const [pageSize, setPageSize] = useState(9);
   const [currentPage, setCurrentPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
