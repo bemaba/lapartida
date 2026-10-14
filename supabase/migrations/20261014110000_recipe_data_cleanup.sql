@@ -14,7 +14,8 @@ set description = btrim(regexp_replace(
   '',
   'i'
 ))
-where description ~* 'Rendimiento no indicado en la fuente';
+where status <> 'published'
+  and description ~* 'Rendimiento no indicado en la fuente';
 
 -- When the imported ingredient name starts with a measurable amount (e.g. "120g nueces picadas"),
 -- move that amount to quantity and leave the ingredient name clean. Explicit quantities are preserved.
@@ -59,6 +60,7 @@ update public.recipes r
 set ingredients = cleaned.ingredients
 from cleaned
 where cleaned.id = r.id
+  and r.status <> 'published'
   and r.ingredients is distinct from cleaned.ingredients;
 
 -- Classify only clearly identifiable generic "Otro" records; ambiguous recipes remain unchanged.
@@ -71,6 +73,7 @@ set category = case
   when title ~* '(pur[eé]|patata asada|verduras asadas|arroz blanco|guarnici[oó]n)' then 'Guarnición'
   else category
 end
-where coalesce(nullif(btrim(category), ''), 'Otro') = 'Otro';
+where status <> 'published'
+  and coalesce(nullif(btrim(category), ''), 'Otro') = 'Otro';
 
 -- Deliberately no automatic step generation: missing instructions must be completed from a trusted source.
