@@ -76,14 +76,15 @@ export default function TeamPage() {
   if (!session) return <main className="lp-page"><section className="lp-card lp-login"><h1>Equipo</h1><p>Inicia sesión en La Partida para continuar.</p><a className="lp-button lp-primary" href="/">Volver al inicio</a></section></main>;
   if (!profile?.active || profile.role !== "admin") return <main className="lp-page"><AppHeader fullName={profile?.full_name || session.user.email || "Usuario"} role={profile?.role || "employee"} onLogout={() => { void supabase.auth.signOut(); window.location.href="/"; }}/><ModuleNavigation activeModule="equipo"/><div className="lp-content"><section className="lp-card"><h1>Acceso restringido</h1><p>Solo una administradora activa puede gestionar el equipo.</p></section></div></main>;
 
-  const activeCount = employees.filter(employee => employee.active).length;
+  const staff = employees.filter(employee => employee.role === "employee");
+  const activeCount = staff.filter(employee => employee.active).length;
   return <main className="lp-page lp-team-page">
     <AppHeader fullName={profile.full_name || session.user.email || "Usuario"} role={profile.role} onLogout={() => { void supabase.auth.signOut(); window.location.href="/"; }}/>
     <ModuleNavigation activeModule="equipo"/>
     <div className="lp-content lp-team-content">
       <header className="lp-heading"><div><span className="lp-kicker">ORGANIZACIÓN DE COCINA</span><h1>Equipo</h1><p>Invita empleados y gestiona quién tiene acceso a La Partida.</p></div></header>
       {notice && <div className="lp-notice" role="status">{notice}</div>}
-      <div className="lp-team-summary"><div className="lp-card lp-team-stat"><UsersRound size={22}/><div><strong>{activeCount}</strong><span>Empleados activos</span></div></div><div className="lp-card lp-team-stat"><UserX size={22}/><div><strong>{employees.length-activeCount}</strong><span>Cuentas desactivadas</span></div></div></div>
+      <div className="lp-team-summary"><div className="lp-card lp-team-stat"><UsersRound size={22}/><div><strong>{activeCount}</strong><span>Empleados activos</span></div></div><div className="lp-card lp-team-stat"><UserX size={22}/><div><strong>{staff.length-activeCount}</strong><span>Cuentas desactivadas</span></div></div></div>
       <section className="lp-card lp-team-invite"><div className="lp-card-title"><div><span className="lp-kicker">NUEVA INCORPORACIÓN</span><h2>Invitar a un empleado</h2></div><UserPlus size={22}/></div><p>Le enviaremos un correo para acceder y configurar su contraseña.</p>
         <form className="lp-team-invite-form" onSubmit={invite}><label>Nombre y apellidos<input required minLength={2} maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Ej. Ana García"/></label><label>Correo electrónico<input required type="email" maxLength={254} value={email} onChange={e=>setEmail(e.target.value)} placeholder="ana@empresa.com"/></label><button className="lp-button lp-primary" type="submit" disabled={saving}><Mail size={16}/>{saving ? "Procesando…" : "Enviar invitación"}</button></form>
       </section>
