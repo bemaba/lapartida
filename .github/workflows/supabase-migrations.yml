@@ -7,6 +7,8 @@ on:
       - feature/production-events
     paths:
       - .github/workflows/supabase-migrations.yml
+      - supabase/migrations/20261014090000_recipe_intermediate_types.sql
+      - supabase/migrations/20261014100000_production_events.sql
 
 permissions:
   contents: read
