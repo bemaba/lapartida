@@ -128,3 +128,27 @@ El workflow aplica las migraciones pendientes en orden. Si la importación de re
 - `supabase/migrations/` — historial versionado de cambios SQL.
 
 **Recomendación para el futuro:** mantener un único workflow genérico de despliegue de migraciones con controles de seguridad, en lugar de crear un workflow distinto para cada nueva funcionalidad. Hasta que exista y esté revisado, los workflows de recetas y fotos deben considerarse específicos de la configuración inicial.
+
+## Producción y eventos
+
+La primera versión del módulo de producción reutiliza los menús y recetas existentes y añade planificación por evento y por día. Cada evento registra fecha de servicio, hora, comensales y menú; al generar el plan se crean tareas para los platos finales y las elaboraciones intermedias vinculadas. El responsable puede repartir cada tarea entre los días previos y actualizar su estado. Las fichas técnicas se guardan como instantáneas al generar el plan para evitar que editar una receta cambie silenciosamente un evento ya planificado.
+
+No crea catálogo de precios, proveedores, inventario ni pedidos. El sistema de compras de la cocina sigue siendo la fuente de verdad para esos procesos.
+
+### Migración de producción
+
+- Archivo: `supabase/migrations/20261014100000_production_events.sql`
+- Tablas nuevas: `production_events` y `production_tasks`.
+- Seguridad: usuarios activos pueden consultar; solo perfiles activos con rol `admin` pueden crear, editar o eliminar eventos y tareas.
+- Workflow genérico: [Apply pending Supabase migrations](.github/workflows/supabase-apply-pending-migrations.yml).
+
+El workflow requiere escribir `APPLY` expresamente y aplica **todas** las migraciones pendientes del repositorio, no solo la de producción. Antes de ejecutarlo, revisa la salida de migraciones previas: si sigue pendiente la importación inicial del menú «Una fuerza del pasado», también se aplicará. La nueva migración de producción no se ejecuta automáticamente al guardar el código.
+
+### Uso inicial
+
+1. Abre el módulo **Producción y eventos**.
+2. Crea un evento, selecciona un menú existente, indica comensales y fecha del servicio.
+3. Genera el plan: las elaboraciones intermedias se proponen dos días antes y los platos finales un día antes.
+4. Ajusta las fechas sugeridas según conservación, reposos y organización real de cocina.
+5. Usa la vista **Por día** para ver las tareas de todos los eventos previstos para una fecha, y la vista **Por evento** para consultar el plan completo.
+6. Revisa cantidades que dependan de unidades incompatibles o ingredientes sin cantidad numérica: el escalado automático no puede resolverlas con certeza.
