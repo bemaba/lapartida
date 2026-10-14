@@ -75,11 +75,6 @@ export async function PATCH(request: NextRequest) {
   }
   if (auth.user.role !== "admin") return NextResponse.json({ error: "Solo administración puede aprobar o rechazar vacaciones." }, { status: 403 });
   if (current.status !== "pending") return NextResponse.json({ error: "Solo se pueden revisar solicitudes pendientes." }, { status: 409 });
-  if (status === "approved") {
-    const { data: overlaps } = await auth.admin.from("leave_requests").select("id").neq("id", id).eq("status", "approved")
-      .lte("starts_on", current.ends_on).gte("ends_on", current.starts_on).limit(1);
-    if (overlaps?.length) return NextResponse.json({ error: "Hay otra ausencia aprobada que coincide en esas fechas. Revisa la cobertura del equipo." }, { status: 409 });
-  }
   const { error } = await auth.admin.from("leave_requests").update({
     status, review_note: reviewNote, reviewed_by: auth.user.user_id, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }).eq("id", id);
