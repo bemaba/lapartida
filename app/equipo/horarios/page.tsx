@@ -9,6 +9,7 @@ import ModuleNavigation from "@/components/module-navigation";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
 type Shift = { id: string; user_id: string; shift_date: string; starts_at: string; ends_at: string; ends_next_day: boolean; shift_type: "continuous" | "split" | "variable"; notes: string };
+type ShiftDraft = Shift & { isNew?: boolean; deleted?: boolean };
 type LeaveRequest = { id: string; user_id: string; starts_on: string; ends_on: string; leave_type: "vacation" | "personal" | "other"; notes: string; status: "pending" | "approved" | "rejected" | "cancelled"; review_note: string };
 type Settings = { counting_method: "working_days" | "calendar_days"; annual_entitlement: number | null; leave_year_start_month: number; allow_carryover: boolean };
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -29,6 +30,7 @@ export default function TeamPlanningPage() {
   const [profile,setProfile] = useState<Profile|null>(null);
   const [employees,setEmployees] = useState<Profile[]>([]);
   const [shifts,setShifts] = useState<Shift[]>([]);
+  const [shiftDrafts,setShiftDrafts] = useState<ShiftDraft[]>([]);
   const [requests,setRequests] = useState<LeaveRequest[]>([]);
   const [settings,setSettings] = useState<Settings>(emptySettings);
   const [weekStart,setWeekStart] = useState(()=>mondayOf(new Date()));
@@ -108,20 +110,37 @@ export default function TeamPlanningPage() {
     return (mins/60).toLocaleString("es-ES",{maximumFractionDigits:1});
   },[shifts]);
 
-  async function saveQuickShift(event:FormEvent, employeeId:string, day:string) {
-    event.preventDefault();setSaving(true);setNotice("");
-    try {
-      const existing=editingShiftId?shifts.find(s=>s.id===editingShiftId):null;
-      await request("/api/team/schedules",existing?"PATCH":"POST",{...(existing?{id:existing.id}:{}),user_id:employeeId,shift_date:day,starts_at:quickStart,ends_at:quickEnd,ends_next_day:existing?.ends_next_day||false,shift_type:existing?.shift_type||"continuous",notes:existing?.notes||""});
-      setNotice(existing?"Turno actualizado.":"Jornada guardada.");setQuickAddCell(null);setEditingShiftId(null);await load();
-    } catch(e) {setNotice(e instanceof Error?e.message:"No se pudo guardar la jornada.");}
-    finally {setSaving(false);}
+  function saveQuickShift(event:FormEvent, employeeId:string, day:string) {
+    event.preventDefault();
+    const existing=editingShiftId?shiftDrafts.find(s=>s.id===editingShiftId)||shifts.find(s=>s.id===editingShiftId):null;
+    const draft:ShiftDraft={id:existing?.id||"draft-"+crypto.randomUUID(),user_id:employeeId,shift_date:day,starts_at:quickStart,ends_at:quickEnd,ends_next_day:existing?.ends_next_day||false,shift_type:existing?.shift_type||"continuous",notes:existing?.notes||"",isNew:existing?.isNew||!existing};
+    setShiftDrafts(prev=>[...prev.filter(s=>s.id!==draft.id),draft]);
+    setQuickAddCell(null);setEditingShiftId(null);setNotice("Cambio pendiente. Pulsa «Guardar planificación» para aplicarlo todo.");
   }
 
-  async function deleteShift(id:string) {
-    if(!window.confirm("¿Eliminar este turno?"))return;setSaving(true);
-    try {await request("/api/team/schedules","DELETE",{id});setNotice("Turno eliminado.");await load();}
-    catch(e){setNotice(e instanceof Error?e.message:"No se pudo eliminar el turno.");}finally{setSaving(false);}
+  function deleteShift(id:string) {
+    const existing=shiftDrafts.find(s=>s.id===id)||shifts.find(s=>s.id===id);
+    if(!existing)return;
+    if(existing.isNew){setShiftDrafts(prev=>prev.filter(s=>s.id!==id));return;}
+    setShiftDrafts(prev=>[...prev.filter(s=>s.id!==id),{...existing,deleted:true}]);
+    setNotice("Eliminación pendiente. Pulsa «Guardar planificación» para aplicarla.");
+  }
+
+  async function saveAllShifts() {
+    if(!shiftDrafts.length)return;
+    setSaving(true);setNotice("");
+    try {
+      for(const draft of shiftDrafts) {
+        if(draft.deleted) await request("/api/team/schedules","DELETE",{id:draft.id});
+        else {
+          const body={user_id:draft.user_id,shift_date:draft.shift_date,starts_at:draft.starts_at,ends_at:draft.ends_at,ends_next_day:draft.ends_next_day,shift_type:draft.shift_type,notes:draft.notes};
+          if(draft.isNew) await request("/api/team/schedules","POST",body);
+          else await request("/api/team/schedules","PATCH",{id:draft.id,...body});
+        }
+      }
+      setNotice("Planificación guardada correctamente.");setShiftDrafts([]);setQuickAddCell(null);setEditingShiftId(null);await load();
+    } catch(e) {setNotice((e instanceof Error?e.message:"No se pudo guardar la planificación.")+" Revisa los cambios pendientes antes de volver a guardar.");await load();}
+    finally {setSaving(false);}
   }
   async function submitLeave(event:FormEvent) {
     event.preventDefault();setSaving(true);setNotice("");
@@ -161,8 +180,8 @@ export default function TeamPlanningPage() {
       </div>
       {tab==="schedule"&&<>
         <section className="lp-card lp-planning-week">
-          <div className="lp-planning-weekbar"><button type="button" className="lp-icon-button" aria-label="Semana anterior" onClick={()=>setWeekStart(addDays(weekStart,-7))}><ChevronLeft size={18}/></button><div><h2>Planificación semanal</h2><p>{titleRange}</p></div><button type="button" className="lp-icon-button" aria-label="Semana siguiente" onClick={()=>setWeekStart(addDays(weekStart,7))}><ChevronRight size={18}/></button><button type="button" className="lp-button lp-secondary" onClick={()=>setWeekStart(mondayOf(new Date()))}>Esta semana</button></div>
-          {loading?<p className="lp-muted">Cargando horarios…</p>:<div className="lp-planning-grid-wrap"><table className="lp-planning-grid"><thead><tr><th>Equipo</th>{days.map(d=><th key={d}>{dayLabel(d)}</th>)}<th>Horas</th></tr></thead><tbody>{employees.map(employee=><tr key={employee.user_id}><th><span>{employee.full_name}</span>{isAdmin&&<small>{employee.role==="admin"?"Administración":"Empleado"}</small>}</th>{days.map(day=><td key={day}><div className="lp-planning-cell-shifts">{shifts.filter(s=>s.user_id===employee.user_id&&s.shift_date===day).map(s=><div className="lp-planning-shift" key={s.id}><strong>{timeLabel(s.starts_at)}–{timeLabel(s.ends_at)}{s.ends_next_day?" +1":""}</strong><span>{typeText[s.shift_type]}</span>{s.notes&&<small>{s.notes}</small>}{isAdmin&&<><div className="lp-planning-shift-actions"><button type="button" aria-label="Editar turno" disabled={saving} onClick={()=>{setEditingShiftId(s.id);setQuickAddCell(employee.user_id+":"+day);setQuickStart(timeLabel(s.starts_at));setQuickEnd(timeLabel(s.ends_at));}}><Pencil size={12}/></button><button type="button" aria-label="Eliminar turno" disabled={saving} onClick={()=>void deleteShift(s.id)}><Trash2 size={12}/></button></div></>}</div>)}{isAdmin&&<>{quickAddCell===employee.user_id+":"+day?<form className="lp-planning-quick-form" onSubmit={e=>void saveQuickShift(e,employee.user_id,day)}><label>Inicio<input aria-label="Hora de inicio" type="time" required value={quickStart} onChange={e=>setQuickStart(e.target.value)}/></label><label>Fin<input aria-label="Hora de fin" type="time" required value={quickEnd} onChange={e=>setQuickEnd(e.target.value)}/></label><div className="lp-planning-quick-actions"><button type="submit" disabled={saving} aria-label="Guardar jornada"><Check size={13}/></button><button type="button" disabled={saving} aria-label="Cancelar" onClick={()=>{setQuickAddCell(null);setEditingShiftId(null);}}><X size={13}/></button></div></form>:<button type="button" className="lp-planning-add-shift" aria-label={"Añadir jornada de "+employee.full_name+" el "+dayLabel(day)} title="Añadir jornada (08:00–16:00)" disabled={saving} onClick={()=>{setEditingShiftId(null);setQuickAddCell(employee.user_id+":"+day);setQuickStart("08:00");setQuickEnd("16:00");}}><Plus size={14}/><span>Añadir</span></button>}</>}</div></td>)}<td className="lp-planning-hours">{weekHours(employee.user_id)} h</td></tr>)}</tbody></table></div>}
+          <div className="lp-planning-weekbar">{isAdmin&&<button type="button" className="lp-button lp-primary" disabled={saving||shiftDrafts.length===0} onClick={()=>void saveAllShifts()}><Save size={15}/>{saving?"Guardando…":"Guardar planificación"+(shiftDrafts.length?" ("+shiftDrafts.length+")":"")}</button>}<button type="button" className="lp-icon-button" aria-label="Semana anterior" disabled={shiftDrafts.length>0||saving} onClick={()=>setWeekStart(addDays(weekStart,-7))}><ChevronLeft size={18}/></button><div><h2>Planificación semanal</h2><p>{titleRange}</p></div><button type="button" className="lp-icon-button" aria-label="Semana siguiente" disabled={shiftDrafts.length>0||saving} onClick={()=>setWeekStart(addDays(weekStart,7))}><ChevronRight size={18}/></button><button type="button" className="lp-button lp-secondary" disabled={shiftDrafts.length>0||saving} onClick={()=>setWeekStart(mondayOf(new Date()))}>Esta semana</button></div>
+          {loading?<p className="lp-muted">Cargando horarios…</p>:<div className="lp-planning-grid-wrap"><table className="lp-planning-grid"><thead><tr><th>Equipo</th>{days.map(d=><th key={d}>{dayLabel(d)}</th>)}<th>Horas</th></tr></thead><tbody>{employees.map(employee=><tr key={employee.user_id}><th><span>{employee.full_name}</span>{isAdmin&&<small>{employee.role==="admin"?"Administración":"Empleado"}</small>}</th>{days.map(day=><td key={day}><div className="lp-planning-cell-shifts">{[...shifts.filter(s=>s.user_id===employee.user_id&&s.shift_date===day&&!shiftDrafts.some(d=>d.id===s.id)),...shiftDrafts.filter(s=>s.user_id===employee.user_id&&s.shift_date===day&&!s.deleted)].map(s=><div className={"lp-planning-shift"+(shiftDrafts.some(d=>d.id===s.id)?" lp-planning-shift-draft":"")} key={s.id}><strong>{timeLabel(s.starts_at)}–{timeLabel(s.ends_at)}{s.ends_next_day?" +1":""}</strong><span>{typeText[s.shift_type]}{shiftDrafts.some(d=>d.id===s.id)?" · Sin guardar":""}</span>{s.notes&&<small>{s.notes}</small>}{isAdmin&&<><div className="lp-planning-shift-actions"><button type="button" aria-label="Editar turno" disabled={saving} onClick={()=>{setEditingShiftId(s.id);setQuickAddCell(employee.user_id+":"+day);setQuickStart(timeLabel(s.starts_at));setQuickEnd(timeLabel(s.ends_at));}}><Pencil size={12}/></button><button type="button" aria-label="Eliminar turno" disabled={saving} onClick={()=>deleteShift(s.id)}><Trash2 size={12}/></button></div></>}</div>)}{isAdmin&&<>{quickAddCell===employee.user_id+":"+day?<form className="lp-planning-quick-form" onSubmit={e=>void saveQuickShift(e,employee.user_id,day)}><label>Inicio<input aria-label="Hora de inicio" type="time" required value={quickStart} onChange={e=>setQuickStart(e.target.value)}/></label><label>Fin<input aria-label="Hora de fin" type="time" required value={quickEnd} onChange={e=>setQuickEnd(e.target.value)}/></label><div className="lp-planning-quick-actions"><button type="submit" disabled={saving} aria-label="Guardar jornada"><Check size={13}/></button><button type="button" disabled={saving} aria-label="Cancelar" onClick={()=>{setQuickAddCell(null);setEditingShiftId(null);}}><X size={13}/></button></div></form>:<button type="button" className="lp-planning-add-shift" aria-label={"Añadir jornada de "+employee.full_name+" el "+dayLabel(day)} title="Añadir jornada (08:00–16:00)" disabled={saving} onClick={()=>{setEditingShiftId(null);setQuickAddCell(employee.user_id+":"+day);setQuickStart("08:00");setQuickEnd("16:00");}}><Plus size={14}/><span>Añadir</span></button>}</>}</div></td>)}<td className="lp-planning-hours">{weekHours(employee.user_id)} h</td></tr>)}</tbody></table></div>}
           <p className="lp-planning-footnote">Todo el personal activo puede consultar estos horarios. Solo administración puede crearlos o modificarlos. Los turnos partidos se registran como dos tramos independientes en el mismo día.</p>
         </section>
 
