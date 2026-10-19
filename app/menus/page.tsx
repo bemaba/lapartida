@@ -435,6 +435,7 @@ export default function MenusPage() {
             </div>
           </nav>
         </>}
+        </>}
         {viewingMenu && <div className="lp-menu-detail-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setViewingMenuId(null); }}>
           <section className="lp-menu-detail-modal" role="dialog" aria-modal="true" aria-labelledby="lp-menu-detail-title">
             <header className="lp-menu-detail-header">
