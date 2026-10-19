@@ -1,3 +1,7 @@
+-- Allow a custom menu category as well as the standard categories.
+alter table public.menus drop constraint if exists menus_menu_type_check;
+alter table public.menus add constraint menus_menu_type_check check (menu_type in ('semanal', 'tematico', 'evento', 'otro'));
+
 -- Reconcile existing menu items with the Singularis catalog categories.
 -- Preserve recipe links and selection rules; only normalize section labels and display order.
 update public.menu_items mi
