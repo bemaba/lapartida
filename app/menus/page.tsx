@@ -114,7 +114,6 @@ export default function MenusPage() {
     const inferredTemplate = menuType === "evento"
       ? eventTemplates.find(template => template.label === (menu.theme_label || ""))?.value || ""
       : "";
-    const template = eventTemplates.find(item => item.value === inferredTemplate);
     setEditingId(menu.id);
     setEventTemplate(inferredTemplate);
     setRecipeTargetSection("Fríos");
@@ -151,7 +150,6 @@ export default function MenusPage() {
     const defaultCourse = courses.includes(recipe.category) ? recipe.category : "Otro";
     setForm(current => {
       const sectionName = current.menu_type === "evento" ? recipeTargetSection : catalogSection(recipe.category, current.menu_type, defaultCourse);
-      const template = current.menu_type === "evento" ? eventTemplates.find(item => item.value === eventTemplate) : undefined;
       const selectionCount = current.menu_type === "evento"
         ? sectionName === "Fríos" ? 4 : sectionName === "Calientes" ? 3 : sectionName === "Postres" ? 2 : null
         : null;
