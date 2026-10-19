@@ -5,21 +5,14 @@
 -- Bebidas y suplementos comerciales (cava, café, agua, etc.) quedan fuera.
 
 do $$
-declare
-  v_admin uuid;
 begin
-  select p.user_id into v_admin
-  from public.profiles p
-  where p.active = true and p.role = 'admin'
-  order by p.user_id
-  limit 1;
-
-  if v_admin is null then
+  if not exists (select 1 from public.profiles p where p.active = true and p.role = 'admin') then
     raise exception 'No se encontró ningún perfil activo con rol admin para importar el catálogo Singularis.';
   end if;
+end $$;
 
-  with catalog(title, description, category, menu_title, course, sort_order) as (
-    values
+with catalog(title, description, category, menu_title, course, sort_order) as (
+  values
 ('Dados de fuet', 'Referencia de cocina Singularis. Ficha técnica pendiente de completar.', 'Frío', 'Light', 'Aperitivo', 1),
 ('Tostada de jamón ibérico', 'Referencia de cocina Singularis. Ficha técnica pendiente de completar.', 'Frío', 'Light', 'Aperitivo', 2),
 ('Dados de queso marinados', 'Referencia de cocina Singularis. Ficha técnica pendiente de completar.', 'Frío', 'Light', 'Aperitivo', 3),
@@ -125,18 +118,17 @@ begin
 ('Estación de arroces — arroz vegetal', 'Estación de arroces. Variedad: arroz vegetal.', 'Estación', 'Estaciones temáticas Singularis', 'Otro', 5),
 ('Estación de arroces — arroz de carne', 'Estación de arroces. Variedad: arroz de carne.', 'Estación', 'Estaciones temáticas Singularis', 'Otro', 6),
 ('Estación poke bowl', 'Estación poke bowl con referencias indicadas: salmón, aguacate, quinoa, arroz integral, lechuga, etc. Ficha técnica pendiente de completar.', 'Estación', 'Estaciones temáticas Singularis', 'Otro', 7)
-  ),
-  inserted_recipes as (
-    insert into public.recipes
-      (title, description, cuisine_type, category, tags, servings, ingredients, steps, allergens, status, created_by)
-    select distinct c.title, c.description, 'Singularis', c.category,
-           array['Singularis','ficha-tecnica-pendiente'], 10, '[]'::jsonb, '[]'::jsonb, '{}'::text[], 'draft', v_admin
-    from catalog c
-    where not exists (select 1 from public.recipes r where lower(trim(r.title)) = lower(trim(c.title)))
-    returning id, title
-  ),
-  menu_data(title, description, theme_label, sort_order) as (
-    values
+)
+insert into public.recipes
+  (title, description, cuisine_type, category, tags, servings, ingredients, steps, allergens, status, created_by)
+select distinct c.title, c.description, 'Singularis', c.category,
+       array['Singularis','ficha-tecnica-pendiente'], 10, '[]'::jsonb, '[]'::jsonb, '{}'::text[], 'draft',
+       (select p.user_id from public.profiles p where p.active = true and p.role = 'admin' order by p.user_id limit 1)
+from catalog c
+where not exists (select 1 from public.recipes r where lower(trim(r.title)) = lower(trim(c.title)));
+
+with menu_data(title, description, theme_label, sort_order) as (
+  values
 ('Light', 'Menú Light Singularis. Selección orientativa: 3 aperitivos fríos y 2 calientes.', 'Light', 1),
 ('Experiencia Gastronómica I', 'Menú Singularis I. Selección: 4 fríos, 4 calientes y 1 postre.', 'Experiencia Gastronómica I', 2),
 ('Experiencia Gastronómica II', 'Menú Singularis II. Selección: 5 fríos, 4 calientes y 2 postres.', 'Experiencia Gastronómica II', 3),
@@ -150,9 +142,12 @@ begin
     from menu_data md
     where not exists (select 1 from public.menus m where lower(trim(m.title)) = lower(trim(md.title)))
     returning id, title
-  )
-  select count(*) into strict v_admin from (select 1) one_row;
-end $$;
+)
+insert into public.menus (title, description, theme_label, status, created_by)
+select md.title, md.description, md.theme_label, 'draft',
+       (select p.user_id from public.profiles p where p.active = true and p.role = 'admin' order by p.user_id limit 1)
+from menu_data md
+where not exists (select 1 from public.menus m where lower(trim(m.title)) = lower(trim(md.title)));
 
 -- Enlazar las referencias del catálogo a cada menú, incluyendo las ya existentes.
 with catalog(title, description, category, menu_title, course, sort_order) as (
