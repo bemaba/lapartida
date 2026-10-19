@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Plus, Printer, Save, Trash2, Utensils, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Filter, Plus, Printer, Save, Search, Trash2, Utensils, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
