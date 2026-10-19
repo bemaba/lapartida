@@ -25,6 +25,43 @@ const eventTemplates = [
   { value: "iv", label: "Experiencia Gastronómica IV", cold: 5, hot: 6, dessert: 2 },
 ] as const;
 type EventTemplateKey = typeof eventTemplates[number]["value"];
+const eventTemplateRecipes: Record<EventTemplateKey, { cold: string[]; hot: string[]; dessert: string[] }> = {
+  light: {
+    cold: ["Dados de fuet", "Tostada de jamón ibérico", "Dados de queso marinados", "Oreo de guacamole", "Banderilla de anchoa y aceituna"],
+    hot: ["Planchadito de oliva con brie", "Minicroquetas de jamón", "Minicroquetas de setas", "Miniburritos con chili", "Botón de tortilla de patata con cebolla caramelizada"],
+    dessert: [],
+  },
+  i: {
+    cold: ["Guacamole con chips vegetales", "Jamón ibérico y pan con tomate", "Cono de tomate con cremoso de brie", "Miniblinis de sobrasada, queso y miel", "Vaso de tabulé con pico de gallo a la menta", "Gazpacho de sandía con perlas de limón", "Crema de setas con anacardos", "Sam de endivia con membrillo", "Tartaleta con cremoso de calabaza al parmesano"],
+    hot: ["Croquetas de setas", "Minibrioche de cheddar y jalapeños", "Cazón adobado", "Croqueta de pollo con mayonesa a la mostaza", "Minitortilla de patatas trufada", "Pan bao relleno de carne mechada y cebolla roja", "Pan de pita relleno de mutabal y queso feta"],
+    dessert: ["Minibrownie con nueces", "Minipastel de zanahoria"],
+  },
+  ii: {
+    cold: ["Minipita con humus de berenjena y brotes", "Tartar de tomate y remolacha con mayonesa de aceitunas", "Ensaladilla rusa con gamba", "Surtido de quesos", "Chupitos de crema de verduras de temporada", "Minibrioche de roast beef y salsa tártara", "Vaso de brotes con fruta, panceta crujiente y vinagreta", "Patata parisina aliñada con ventresca de atún", "Brocheta de melón con arena de jamón"],
+    hot: ["Rock and roll de calamar con mayonesa de cítricos", "Minihamburguesa de ternera", "Degustación de arroz cremoso de setas", "Minigofre con queso feta y calabacín", "Pan de pita relleno de ragú de ternera", "Croquetas de jamón", "Minicanelón de pato con bechamel y parmesano", "Gyoza de verduras con salsa teriyaki"],
+    dessert: ["Brocheta de fruta de temporada", "Minimuffin de frutos rojos", "Trufas heladas de chocolate", "Minitatin de manzana"],
+  },
+  iii: {
+    cold: ["Tartar de longaniza curada con mayonesa de wasabi", "Lingote sólido de vermut", "Minimollete de roast beef con salsa de mostaza-miel", "Cono comestible de cremoso de langostino", "Aire de brandada con miel", "Rock and roll de guacamole con encurtidos", "Brocheta de queso con membrillo", "Dados de salmón macerados", "Airbag de jamón ibérico", "Semiesfera de melón con arena de jamón", "Salmorejo de mango"],
+    hot: ["Focaccia mediterránea de calabacín y queso feta", "Minibrocheta thai de gamba", "Brocheta de pollo yakitori", "Fideuá de marisco", "Crujiente vegetal con salsa romesco", "Miniwrap de pollo salteado con mostaza-miel", "Trigo tierno con calabaza y ternera al chimichurri", "Bao de calamares y mayonesa de kimchi", "Minicroquetas de setas"],
+    dessert: ["Chupito de crema de limón", "Minibrownie", "Brocheta de fruta de temporada", "Surtido de minimacarons"],
+  },
+  iv: {
+    cold: ["Tartar de longaniza curada con mayonesa de wasabi", "Lingote sólido de vermut", "Minimollete de roast beef con salsa de mostaza-miel", "Cono comestible de cremoso de langostino", "Aire de brandada con miel", "Rock and roll de guacamole con encurtidos", "Brocheta de queso con membrillo", "Dados de salmón macerados", "Airbag de jamón ibérico", "Semiesfera de melón con arena de jamón", "Salmorejo de mango"],
+    hot: ["Minipita de cordero con mayonesa cítrica", "Minicanelón de setas con salsa trufada", "Brocheta de pollo con salsa teriyaki", "Crujiente de carabinero", "Minigofre con queso cabra y cebolla caramelizada", "Smash brioche de lomo ibérico y queso comté", "Miniburritos con cochinita pibil y olivada", "Miniburger de ternera con queso y cebolla caramelizada", "Pulpo a la feria con cremoso de patata", "Taco de bacalao con muselina de mango", "Crema de boletus con arena de anacardos"],
+    dessert: [],
+  },
+};
+const normalizeRecipeTitle = (value: string) => value.toLocaleLowerCase("es").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const recipeMatchesTemplate = (recipe: Recipe, template: EventTemplateKey, section: string) => {
+  const key = section === "Fríos" ? "cold" : section === "Calientes" ? "hot" : section === "Postres" ? "dessert" : null;
+  if (!key) return true;
+  const title = normalizeRecipeTitle(recipe.title);
+  return eventTemplateRecipes[template][key].some(reference => {
+    const normalized = normalizeRecipeTitle(reference);
+    return title === normalized || title.includes(normalized) || normalized.includes(title);
+  });
+};
 const sectionRank = (section: string) => { const value = section.trim().toLocaleLowerCase("es"); if (["frío", "fríos"].includes(value)) return 0; if (["caliente", "calientes"].includes(value)) return 1; if (["postre", "postres"].includes(value)) return 2; if (["estación", "estaciones"].includes(value)) return 3; return 4; };
 const catalogSection = (category: string, menuType: "semanal" | "tematico" | "evento" | "otro", course: string) => { const value = category.trim().toLocaleLowerCase("es"); if (value === "frío" || value === "frio") return "Fríos"; if (value === "caliente") return "Calientes"; if (value === "postre") return "Postres"; if (value === "estación" || value === "estacion") return "Estaciones"; if (course === "Postre") return "Postres"; if (menuType === "evento") return ["Principal", "Guarnición"].includes(course) ? "Calientes" : "Fríos"; if (course === "Entrante" || course === "Aperitivo") return "Primeros"; if (course === "Principal" || course === "Guarnición") return "Segundos"; return "Primeros"; };
 const sortMenuItems = <T extends { section_name?: string; course?: string; sort_order: number; recipe?: { category?: string; title?: string } | null; recipes?: { category?: string; title?: string } | null }>(items: T[]) => [...items].sort((a,b) => { const sectionA = a.section_name || a.recipe?.category || a.recipes?.category || a.course || "Otros"; const sectionB = b.section_name || b.recipe?.category || b.recipes?.category || b.course || "Otros"; return sectionRank(sectionA)-sectionRank(sectionB) || a.sort_order-b.sort_order || String(a.recipe?.title || a.recipes?.title || "").localeCompare(String(b.recipe?.title || b.recipes?.title || ""), "es"); });
@@ -237,8 +274,8 @@ export default function MenusPage() {
           {form.menu_type === "evento" && <label className="lp-menu-target-section">Añadir al bloque<select value={recipeTargetSection} onChange={e=>setRecipeTargetSection(e.target.value)}><option>Fríos</option><option>Calientes</option><option>Postres</option><option>Estaciones</option></select></label>}
           <label className="lp-menu-search">Buscar receta<input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Nombre, categoría o etiqueta…"/></label>
           <div className="lp-menu-picker">
-            {availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).map(recipe=><button type="button" key={recipe.id} className="lp-menu-recipe-option" onClick={()=>addRecipe(recipe.id)}><Plus size={15}/><span><strong>{recipe.title}</strong><small>{recipe.category} · {recipe.servings} pax · {recipe.status==="published"?"Publicada":"Borrador"}</small></span></button>)}
-            {!availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).length && <p className="lp-muted small-text">No hay más recetas disponibles con esta búsqueda.</p>}
+            {availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id) && (!eventTemplate || recipeMatchesTemplate(recipe,eventTemplate,recipeTargetSection))).map(recipe=><button type="button" key={recipe.id} className="lp-menu-recipe-option" onClick={()=>addRecipe(recipe.id)}><Plus size={15}/><span><strong>{recipe.title}</strong><small>{recipe.category} · {recipe.servings} pax · {recipe.status==="published"?"Publicada":"Borrador"}</small></span></button>)}
+            {!availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).length && <p className="lp-muted small-text">No hay recetas disponibles para este bloque y experiencia con esta búsqueda. Comprueba que el recetario use los nombres del dosier.</p>}
           </div>
           <div className="lp-menu-section-head"><div><h3><Utensils size={17}/> Bloques y elección de platos</h3><p>{form.menu_type==="evento"?"En eventos se proponen Fríos, Calientes y Postres.":"En menús semanales y temáticos se proponen Primeros, Segundos y Postres."} Puedes editar el nombre del bloque en cada receta. La elección es opcional.</p></div></div>
           {!form.items.length ? <div className="lp-week-empty"><ClipboardList size={26}/><strong>Aún no hay pases</strong><span>Añade recetas en el apartado anterior.</span></div> : <div className="lp-menu-items">{form.items.map((item,index)=><article className="lp-menu-item" key={item.recipe_id}><div className="lp-menu-item-order"><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,-1)} disabled={index===0} aria-label="Mover receta arriba"><ArrowUp size={15}/></button><span>{index+1}</span><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,1)} disabled={index===form.items.length-1} aria-label="Mover receta abajo"><ArrowDown size={15}/></button></div><div className="lp-menu-item-name"><strong>{item.recipe?.title || recipes.find(recipe=>recipe.id===item.recipe_id)?.title || "Receta"}</strong><small>{item.recipe?.servings || recipes.find(recipe=>recipe.id===item.recipe_id)?.servings || "—"} pax en la ficha original</small></div><label>Bloque<input value={item.section_name} maxLength={80} onChange={e=>changeItem(index,{section_name:e.target.value})} placeholder="Ej. Primeros"/></label><label>Elección del bloque<select value={item.selection_count===null?"all":String(item.selection_count)} onChange={e=>changeItem(index,{selection_count:e.target.value==="all"?null:Number(e.target.value)})}><option value="all">Todos los platos</option>{Array.from({length:form.items.filter(row=>row.section_name===item.section_name).length},(_,i)=>i+1).map(n=><option key={n} value={n}>Elegir {n} de {form.items.filter(row=>row.section_name===item.section_name).length}</option>)}</select></label><label>Pase<select value={item.course} onChange={e=>changeItem(index,{course:e.target.value})}>{courses.map(course=><option key={course}>{course}</option>)}</select></label><button type="button" className="lp-icon-button lp-menu-remove" onClick={()=>removeItem(index)} aria-label="Quitar receta del menú"><Trash2 size={15}/></button></article>)}</div>}
