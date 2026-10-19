@@ -687,3 +687,15 @@
 .lp-logged-out .lp-login{width:min(100%,430px);padding:34px}
 .lp-logged-out .lp-login p{color:#59645c;line-height:1.6;margin:12px 0 18px}
 .lp-logged-out .lp-link-button{width:100%;text-align:center;text-decoration:none}
+
+/* Event menu: persistent blocks with independent step counts and add-dish actions */
+.lp-event-blocks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 20px}
+.lp-event-block-card{display:grid;align-content:start;gap:12px;padding:15px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0}
+.lp-event-block-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lp-event-block-heading h4{margin:0;font-size:14px;color:var(--ink)}
+.lp-event-block-heading span{font-size:11px;color:var(--muted);text-align:right}
+.lp-event-block-card label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.lp-event-block-card select{width:100%;padding:10px;border:1px solid #dfe5dd;border-radius:9px;background:#fff;color:var(--ink);font:inherit}
+.lp-event-add-dish{width:100%;justify-content:center}
+.lp-event-search-target{margin:0 0 10px;padding:10px 12px;border-radius:9px;background:#edf4ee;color:#42604d;font-size:12px}
+@media(max-width:760px){.lp-event-blocks{grid-template-columns:1fr}.lp-event-block-card{padding:13px}}
