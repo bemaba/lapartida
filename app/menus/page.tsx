@@ -140,12 +140,22 @@ export default function MenusPage() {
       const name = item.section_name.trim() || "Otros";
       sectionGroups.set(name, [...(sectionGroups.get(name) || []), item]);
     });
-    for (const [name, items] of sectionGroups) {
+    sectionGroups.forEach((items, name) => {
       const counts = new Set(items.map(item => item.selection_count ?? null));
-      if (counts.size > 1) { setNotice(`El bloque «${name}» tiene reglas de elección distintas. Usa el mismo número para todo el bloque.`); return; }
+      if (counts.size > 1) {
+        setNotice(`El bloque «${name}» tiene reglas de elección distintas. Usa el mismo número para todo el bloque.`);
+        return;
+      }
       const count = items[0].selection_count;
-      if (count !== null && count > items.length) { setNotice(`El bloque «${name}» permite elegir ${count}, pero solo tiene ${items.length} recetas.`); return; }
-    }
+      if (count !== null && count > items.length) {
+        setNotice(`El bloque «${name}» permite elegir ${count}, pero solo tiene ${items.length} recetas.`);
+      }
+    });
+    const invalidSelection = Array.from(sectionGroups.entries()).some(([name, items]) => {
+      const counts = new Set(items.map(item => item.selection_count ?? null));
+      return counts.size > 1 || (items[0].selection_count !== null && items[0].selection_count > items.length);
+    });
+    if (invalidSelection) return;
     setSaving(true); setNotice("");
     const payload = { title: form.title.trim(), description: form.description.trim(), theme_label: form.theme_label.trim(), status: form.status, updated_at: new Date().toISOString() };
     let menuId = editingId;
