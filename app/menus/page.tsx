@@ -233,7 +233,7 @@ export default function MenusPage() {
 
   if (!supabase) return <main className="lp-page"><section className="lp-card lp-login"><ChefHat size={30}/><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p></section></main>;
   if (loading) return <main className="lp-page"><div className="lp-loading">Cargando menús…</div></main>;
-  if (!session) return <main className="lp-page"><section className="lp-card lp-login"><ChefHat size={30}/><h1>Menús</h1><p>Inicia sesión en La Partida para continuar.</p><Link className="lp-button lp-primary lp-link-button" href="/">Volver al inicio para iniciar sesión</Link></section></main>;
+  if (!session) return <main className="lp-center lp-logged-out"><section className="lp-card lp-login"><div className="lp-logo"><ChefHat size={30}/></div><h1>Menús</h1><p>Inicia sesión en La Partida para continuar.</p><Link className="lp-button lp-primary lp-link-button" href="/">Volver al inicio para iniciar sesión</Link></section></main>;
   if (!profile?.active) return <main className="lp-page"><section className="lp-card lp-login"><h1>Acceso no disponible</h1><p>Tu cuenta no tiene un perfil activo.</p><Link href="/">Volver al inicio</Link></section></main>;
 
   return (
