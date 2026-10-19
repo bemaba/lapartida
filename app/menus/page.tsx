@@ -17,6 +17,14 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT
 const supabase = url && key ? createClient(url, key) : null;
 const courses = ["Aperitivo", "Entrante", "Principal", "Guarnición", "Postre", "Otro"];
 const menuTypes = [{ value: "semanal", label: "Semanal / Fin de semana" }, { value: "tematico", label: "Temático" }, { value: "evento", label: "Evento" }, { value: "otro", label: "Otro / personalizado" }] as const;
+const eventTemplates = [
+  { value: "light", label: "Experiencia Gastronómica Light", cold: 3, hot: 2, dessert: 0 },
+  { value: "i", label: "Experiencia Gastronómica I", cold: 4, hot: 4, dessert: 1 },
+  { value: "ii", label: "Experiencia Gastronómica II", cold: 5, hot: 4, dessert: 2 },
+  { value: "iii", label: "Experiencia Gastronómica III", cold: 5, hot: 5, dessert: 2 },
+  { value: "iv", label: "Experiencia Gastronómica IV", cold: 5, hot: 6, dessert: 2 },
+] as const;
+type EventTemplateKey = typeof eventTemplates[number]["value"];
 const sectionRank = (section: string) => { const value = section.trim().toLocaleLowerCase("es"); if (["frío", "fríos"].includes(value)) return 0; if (["caliente", "calientes"].includes(value)) return 1; if (["postre", "postres"].includes(value)) return 2; if (["estación", "estaciones"].includes(value)) return 3; return 4; };
 const catalogSection = (category: string, menuType: "semanal" | "tematico" | "evento" | "otro", course: string) => { const value = category.trim().toLocaleLowerCase("es"); if (value === "frío" || value === "frio") return "Fríos"; if (value === "caliente") return "Calientes"; if (value === "postre") return "Postres"; if (value === "estación" || value === "estacion") return "Estaciones"; if (course === "Postre") return "Postres"; if (menuType === "evento") return ["Principal", "Guarnición"].includes(course) ? "Calientes" : "Fríos"; if (course === "Entrante" || course === "Aperitivo") return "Primeros"; if (course === "Principal" || course === "Guarnición") return "Segundos"; return "Primeros"; };
 const sortMenuItems = <T extends { section_name?: string; course?: string; sort_order: number; recipe?: { category?: string; title?: string } | null; recipes?: { category?: string; title?: string } | null }>(items: T[]) => [...items].sort((a,b) => { const sectionA = a.section_name || a.recipe?.category || a.recipes?.category || a.course || "Otros"; const sectionB = b.section_name || b.recipe?.category || b.recipes?.category || b.course || "Otros"; return sectionRank(sectionA)-sectionRank(sectionB) || a.sort_order-b.sort_order || String(a.recipe?.title || a.recipes?.title || "").localeCompare(String(b.recipe?.title || b.recipes?.title || ""), "es"); });
@@ -37,7 +45,7 @@ export default function MenusPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
-  const [recipeSearch, setRecipeSearch] = useState("");
+  const [recipeSearch, setRecipeSearch] = useState("");\n  const [eventTemplate, setEventTemplate] = useState<EventTemplateKey | "">("");\n  const [recipeTargetSection, setRecipeTargetSection] = useState("Fríos");
   const [menuSearch, setMenuSearch] = useState("");
   const [menuTypeFilter, setMenuTypeFilter] = useState("todos");
   const [menuStatusFilter, setMenuStatusFilter] = useState("todos");
@@ -98,7 +106,7 @@ export default function MenusPage() {
     return matchesSearch && (menuTypeFilter === "todos" || menu.menu_type === menuTypeFilter) && (menuStatusFilter === "todos" || menu.status === menuStatusFilter);
   }), [menus, menuSearch, menuTypeFilter, menuStatusFilter]);
 
-  const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setFormOpen(true); setNotice(""); };
+  const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setEventTemplate(""); setRecipeTargetSection("Fríos"); setFormOpen(true); setNotice(""); };
   const startEdit = (menu: MenuRecord) => {
     setEditingId(menu.id);
     setForm({
@@ -224,7 +232,9 @@ export default function MenusPage() {
             <label className="wide">Descripción<textarea rows={2} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Concepto, temporada o contexto del menú…"/></label>
             <label>Estado<select value={form.status} onChange={e=>setForm({...form,status:e.target.value as "draft"|"published"})}><option value="draft">Borrador</option><option value="published">Publicado</option></select></label>
           </div>
+          {form.menu_type === "evento" && <section className="lp-event-template"><label>Plantilla de experiencia gastronómica<select value={eventTemplate} onChange={e=>{const key=e.target.value as EventTemplateKey | "";setEventTemplate(key);const t=eventTemplates.find(x=>x.value===key);if(t){setRecipeTargetSection("Fríos");setForm(current=>({...current,theme_label:t.label,items:current.items.map(item=>({...item,selection_count:item.section_name==="Fríos"?t.cold:item.section_name==="Calientes"?t.hot:item.section_name==="Postres"?(t.dessert||null):item.selection_count}))}));}}}><option value="">Evento personalizado (sin plantilla)</option>{eventTemplates.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>{eventTemplate && <p>Reglas precargadas: {eventTemplates.find(t=>t.value===eventTemplate)?.cold} fríos · {eventTemplates.find(t=>t.value===eventTemplate)?.hot} calientes · {eventTemplates.find(t=>t.value===eventTemplate)?.dessert} postres. Puedes personalizar las cantidades para este evento.</p>}</section>}
           <div className="lp-menu-section-head"><div><h3><BookOpen size={17}/> Añadir recetas</h3><p>Selecciona una receta existente. No se copia ni se crea otra ficha.</p></div><span>{form.items.length} pases</span></div>
+          {form.menu_type === "evento" && <label className="lp-menu-target-section">Añadir al bloque<select value={recipeTargetSection} onChange={e=>setRecipeTargetSection(e.target.value)}><option>Fríos</option><option>Calientes</option><option>Postres</option><option>Estaciones</option></select></label>}
           <label className="lp-menu-search">Buscar receta<input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Nombre, categoría o etiqueta…"/></label>
           <div className="lp-menu-picker">
             {availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).map(recipe=><button type="button" key={recipe.id} className="lp-menu-recipe-option" onClick={()=>addRecipe(recipe.id)}><Plus size={15}/><span><strong>{recipe.title}</strong><small>{recipe.category} · {recipe.servings} pax · {recipe.status==="published"?"Publicada":"Borrador"}</small></span></button>)}
