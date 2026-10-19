@@ -15,11 +15,15 @@ type Recipe = {
   category?: string; status: string; prep_minutes?: number | null; cook_minutes?: number | null;
   allergens?: string[]; dietary_tags?: string[]; storage_notes?: string; description?: string;
 };
-type MenuItem = { id: string; recipe_id: string; course: string; sort_order: number };
-type MenuRecord = { id: string; title: string; description: string; status: string; menu_items: MenuItem[] };
+type MenuItem = {
+  id: string; recipe_id: string; course: string; section_name: string;
+  selection_count: number | null; sort_order: number;
+  recipes?: { id: string; title: string; category?: string } | null;
+};
+type MenuRecord = { id: string; title: string; description: string; status: string; menu_type: "semanal" | "tematico" | "evento" | "otro"; menu_items: MenuItem[] };
 type ProductionEvent = {
   id: string; title: string; event_date: string; service_time: string | null; guest_count: number;
-  menu_id: string | null; menu_title_snapshot: string; status: "draft" | "planned" | "in_progress" | "completed" | "cancelled";
+  menu_id: string | null; menu_title_snapshot: string; selected_recipe_ids: string[] | null; status: "draft" | "planned" | "in_progress" | "completed" | "cancelled";
   notes: string; created_by: string; created_at: string;
 };
 type ProductionTask = {
@@ -102,8 +106,26 @@ function quantityLabel(recipe: Recipe, factor: number, guests: number) {
   if (recipe.yield_quantity && recipe.yield_unit) return `${formatFactor(recipe.yield_quantity * factor)} ${recipe.yield_unit}`;
   return `× ${formatFactor(factor)} de la receta base`;
 }
-function makePlan(menu: MenuRecord, recipes: Recipe[], guests: number, eventDate: string): PlannedTask[] {
+const defaultEventSelectionCount: Record<string, number> = { "Fríos": 4, "Calientes": 3, "Postres": 2 };
+
+function getEventMenuGroups(menu: MenuRecord | null) {
+  if (!menu) return [];
+  const grouped = new Map<string, MenuItem[]>();
+  [...(menu.menu_items || [])].sort((a,b) => a.sort_order - b.sort_order).forEach(item => {
+    const name = item.section_name || item.course || "Otros";
+    grouped.set(name, [...(grouped.get(name) || []), item]);
+  });
+  return Array.from(grouped.entries()).map(([name, items]) => ({
+    name,
+    items,
+    selectionCount: items[0]?.selection_count ?? defaultEventSelectionCount[name] ?? items.length
+  }));
+}
+
+function makePlan(menu: MenuRecord, recipes: Recipe[], guests: number, eventDate: string, selectedRecipeIds?: string[] | null): PlannedTask[] {
+  const selected = selectedRecipeIds?.length ? new Set(selectedRecipeIds) : null;
   const finalRecipes = [...(menu.menu_items || [])]
+    .filter(item => !selected || selected.has(item.recipe_id))
     .sort((a, b) => a.sort_order - b.sort_order)
     .map(item => recipes.find(recipe => recipe.id === item.recipe_id))
     .filter((recipe): recipe is Recipe => Boolean(recipe && recipe.recipe_type === "final"));
@@ -154,17 +176,21 @@ export default function ProductionPage() {
   const [dailyDate, setDailyDate] = useState(todayKey);
   const [formOpen, setFormOpen] = useState(false);
   const [eventForm, setEventForm] = useState({ title: "", event_date: todayKey(), service_time: "", guest_count: "50", menu_id: "", notes: "" });
+  const [selectedMenuRecipeIds, setSelectedMenuRecipeIds] = useState<string[]>([]);
+  const [eventSelectionValidation, setEventSelectionValidation] = useState("");
 
   const isAdmin = profile?.role === "admin" && profile.active;
   const selectedEvent = events.find(event => event.id === selectedEventId) || null;
   const selectedMenu = menus.find(menu => menu.id === selectedEvent?.menu_id) || null;
+  const selectedMenuForForm = menus.find(menu => menu.id === eventForm.menu_id) || null;
+  const eventMenuGroups = selectedMenuForForm?.menu_type === "evento" ? getEventMenuGroups(selectedMenuForForm) : [];
 
   const refresh = useCallback(async () => {
     if (!supabase || !session) return;
     setLoading(true);
     const [{ data: profileRow, error: profileError }, { data: menuRows, error: menuError }, { data: recipeRows, error: recipeError }, { data: eventRows, error: eventError }, { data: taskRows, error: taskError }] = await Promise.all([
       supabase.from("profiles").select("user_id,full_name,role,active").eq("user_id", session.user.id).maybeSingle(),
-      supabase.from("menus").select("id,title,description,status,menu_items(id,recipe_id,course,sort_order)").order("created_at", { ascending: false }),
+      supabase.from("menus").select("id,title,description,status,menu_type,menu_items(id,recipe_id,course,section_name,selection_count,sort_order,recipes(id,title,category))").order("created_at", { ascending: false }),
       supabase.from("recipes").select("id,title,recipe_type,servings,yield_quantity,yield_unit,ingredients,steps,category,status,prep_minutes,cook_minutes,allergens,dietary_tags,storage_notes,description").neq("status", "archived").order("title"),
       supabase.from("production_events").select("*").order("event_date", { ascending: true }),
       supabase.from("production_tasks").select("*").order("production_date", { ascending: true }).order("sort_order", { ascending: true })
@@ -206,10 +232,27 @@ export default function ProductionPage() {
     const menu = menus.find(item => item.id === eventForm.menu_id);
     if (!menu) { setNotice("El menú seleccionado ya no está disponible."); return; }
     if (!(menu.menu_items || []).length) { setNotice("El menú no contiene platos. Añade recetas en Menús antes de planificar el evento."); return; }
+    let chosenRecipeIds = menu.menu_items.map(item => item.recipe_id);
+    if (menu.menu_type === "evento") {
+      const errors = getEventMenuGroups(menu)
+        .map(group => {
+          const selectedCount = selectedMenuRecipeIds.filter(id => group.items.some(item => item.recipe_id === id)).length;
+          return selectedCount === group.selectionCount
+            ? ""
+            : `${group.name}: selecciona exactamente ${group.selectionCount} plato(s). Ahora tienes ${selectedCount}.`;
+        })
+        .filter(Boolean);
+      if (errors.length) {
+        setEventSelectionValidation(errors.join("\n\n"));
+        return;
+      }
+      chosenRecipeIds = selectedMenuRecipeIds;
+    }
     setSaving(true); setNotice("");
     const { data, error } = await supabase.from("production_events").insert({
       title: eventForm.title.trim(), event_date: eventForm.event_date, service_time: eventForm.service_time || null,
       guest_count: Number(eventForm.guest_count), menu_id: menu.id, menu_title_snapshot: menu.title,
+      selected_recipe_ids: chosenRecipeIds,
       status: "draft", notes: eventForm.notes.trim(), created_by: session.user.id
     }).select("*").single();
     setSaving(false);
@@ -217,6 +260,8 @@ export default function ProductionPage() {
     setEvents(current => [...current, data as ProductionEvent].sort((a, b) => a.event_date.localeCompare(b.event_date)));
     setSelectedEventId(data.id); setFormOpen(false); setActiveView("events");
     setEventForm({ title: "", event_date: todayKey(), service_time: "", guest_count: "50", menu_id: "", notes: "" });
+    setSelectedMenuRecipeIds([]);
+    setEventSelectionValidation("");
     setNotice("Evento creado. Genera el plan para crear las tareas de producción.");
   };
 
@@ -226,7 +271,7 @@ export default function ProductionPage() {
     if (!menu) { setNotice("El menú asociado no está disponible. Edita o vuelve a crear el evento con un menú válido."); return; }
     const existing = tasks.filter(task => task.event_id === event.id);
     if (existing.length && !window.confirm("Se sustituirán las tareas actuales de este evento. ¿Quieres continuar?")) return;
-    const plan = makePlan(menu, recipes, event.guest_count, event.event_date);
+    const plan = makePlan(menu, recipes, event.guest_count, event.event_date, event.selected_recipe_ids);
     if (!plan.length) { setNotice("No se han encontrado platos finales con recetas válidas en este menú."); return; }
     setSaving(true); setNotice("");
     if (existing.length) {
