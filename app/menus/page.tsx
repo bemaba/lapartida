@@ -147,21 +147,34 @@ export default function MenusPage() {
 
   const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setEventTemplate(""); setRecipeTargetSection("Fríos"); setFormOpen(true); setNotice(""); };
   const startEdit = (menu: MenuRecord) => {
+    const menuType = menu.menu_type || "semanal";
+    const inferredTemplate = menuType === "evento"
+      ? eventTemplates.find(template => template.label === (menu.theme_label || ""))?.value || ""
+      : "";
+    const template = eventTemplates.find(item => item.value === inferredTemplate);
     setEditingId(menu.id);
+    setEventTemplate(inferredTemplate);
+    setRecipeTargetSection("Fríos");
     setForm({
       title: menu.title,
       description: menu.description || "",
       theme_label: menu.theme_label || "",
-      menu_type: menu.menu_type || "semanal",
+      menu_type: menuType,
       status: menu.status,
-      items: sortMenuItems(menu.menu_items || []).map(item => ({
-        recipe_id: item.recipe_id,
-        course: item.course,
-        section_name: item.section_name || item.course || "Otros",
-        selection_count: item.selection_count ?? null,
-        sort_order: item.sort_order,
-        recipe: item.recipes || undefined
-      }))
+      items: sortMenuItems(menu.menu_items || []).map(item => {
+        const sectionName = item.section_name || item.course || "Otros";
+        const defaultCount = template
+          ? sectionName === "Fríos" ? template.cold : sectionName === "Calientes" ? template.hot : sectionName === "Postres" ? (template.dessert || null) : null
+          : null;
+        return {
+          recipe_id: item.recipe_id,
+          course: item.course,
+          section_name: sectionName,
+          selection_count: item.selection_count ?? defaultCount,
+          sort_order: item.sort_order,
+          recipe: item.recipes || undefined
+        };
+      })
     });
     setRecipeSearch("");
     setFormOpen(true);
