@@ -52,7 +52,7 @@ const eventTemplateRecipes: Record<EventTemplateKey, { cold: string[]; hot: stri
     dessert: [],
   },
 };
-const normalizeRecipeTitle = (value: string) => value.toLocaleLowerCase("es").normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
+const normalizeRecipeTitle = (value: string) => value.toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const recipeMatchesTemplate = (recipe: Recipe, template: EventTemplateKey, section: string) => {
   const key = section === "Fríos" ? "cold" : section === "Calientes" ? "hot" : section === "Postres" ? "dessert" : null;
   if (!key) return true;
