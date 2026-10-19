@@ -9,7 +9,7 @@ import AppHeader from "@/components/app-header";
 
 type Profile = { user_id: string; full_name: string; role: "admin" | "employee"; active: boolean };
 type Recipe = { id: string; title: string; category: string; recipe_type: "final" | "intermediate"; servings: number; status: "draft" | "published" | "archived"; photo_url: string | null; tags: string[] };
-type MenuItem = { id?: string; recipe_id: string; course: string; sort_order: number; recipe?: Recipe };
+type MenuItem = { id?: string; recipe_id: string; course: string; section_name: string; selection_count: number | null; sort_order: number; recipe?: Recipe };
 type MenuRecord = { id: string; title: string; description: string; theme_label: string; status: "draft" | "published"; created_at: string; menu_items: Array<MenuItem & { recipes?: Recipe | null }> };
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,7 +58,7 @@ export default function MenusPage() {
     const [{ data: p, error: profileError }, { data: recipeRows, error: recipeError }, { data: menuRows, error: menuError }] = await Promise.all([
       supabase.from("profiles").select("user_id,full_name,role,active").eq("user_id", session.user.id).maybeSingle(),
       supabase.from("recipes").select("id,title,category,recipe_type,servings,status,photo_url,tags").neq("status", "archived").order("title"),
-      supabase.from("menus").select("id,title,description,theme_label,status,created_at,menu_items(id,recipe_id,course,sort_order,recipes(id,title,category,recipe_type,servings,status,photo_url,tags))").order("created_at", { ascending: false })
+      supabase.from("menus").select("id,title,description,theme_label,status,created_at,menu_items(id,recipe_id,course,section_name,selection_count,sort_order,recipes(id,title,category,recipe_type,servings,status,photo_url,tags))").order("created_at", { ascending: false })
     ]);
     if (profileError || !p) setNotice("No se pudo cargar tu perfil. Comprueba tu cuenta en La Partida.");
     else setProfile(p as Profile);
@@ -96,6 +96,8 @@ export default function MenusPage() {
       items: [...(menu.menu_items || [])].sort((a,b) => a.sort_order-b.sort_order).map(item => ({
         recipe_id: item.recipe_id,
         course: item.course,
+        section_name: item.section_name || item.course || "Otros",
+        selection_count: item.selection_count ?? null,
         sort_order: item.sort_order,
         recipe: item.recipes || undefined
       }))
@@ -110,9 +112,16 @@ export default function MenusPage() {
     const recipe = recipes.find(item => item.id === recipeId);
     if (!recipe) return;
     const defaultCourse = courses.includes(recipe.category) ? recipe.category : "Otro";
-    setForm(current => ({ ...current, items: [...current.items, { recipe_id: recipe.id, course: defaultCourse, sort_order: current.items.length, recipe }] }));
+    setForm(current => ({ ...current, items: [...current.items, { recipe_id: recipe.id, course: defaultCourse, section_name: defaultCourse === "Aperitivo" ? "Aperitivos" : defaultCourse === "Entrante" ? "Entrantes" : defaultCourse === "Principal" ? "Platos principales" : defaultCourse === "Guarnición" ? "Guarniciones" : defaultCourse === "Postre" ? "Postres" : "Otros", selection_count: null, sort_order: current.items.length, recipe }] }));
   };
-  const changeItem = (index: number, patch: Partial<MenuItem>) => setForm(current => ({ ...current, items: current.items.map((item,i) => i === index ? { ...item, ...patch } : item) }));
+  const changeItem = (index: number, patch: Partial<MenuItem>) => setForm(current => {
+    const target = current.items[index];
+    if (!target) return current;
+    if (Object.prototype.hasOwnProperty.call(patch, "selection_count")) {
+      return { ...current, items: current.items.map(item => item.section_name === target.section_name ? { ...item, ...patch } : item) };
+    }
+    return { ...current, items: current.items.map((item,i) => i === index ? { ...item, ...patch } : item) };
+  });
   const moveItem = (index: number, direction: -1 | 1) => setForm(current => {
     const next = [...current.items];
     const target = index + direction;
@@ -126,6 +135,17 @@ export default function MenusPage() {
     event.preventDefault();
     if (!supabase || !session || !profile?.active || !isAdmin) return;
     if (form.items.length === 0) { setNotice("Añade al menos una receta al menú."); return; }
+    const sectionGroups = new Map<string, MenuItem[]>();
+    form.items.forEach(item => {
+      const name = item.section_name.trim() || "Otros";
+      sectionGroups.set(name, [...(sectionGroups.get(name) || []), item]);
+    });
+    for (const [name, items] of sectionGroups) {
+      const counts = new Set(items.map(item => item.selection_count ?? null));
+      if (counts.size > 1) { setNotice(`El bloque «${name}» tiene reglas de elección distintas. Usa el mismo número para todo el bloque.`); return; }
+      const count = items[0].selection_count;
+      if (count !== null && count > items.length) { setNotice(`El bloque «${name}» permite elegir ${count}, pero solo tiene ${items.length} recetas.`); return; }
+    }
     setSaving(true); setNotice("");
     const payload = { title: form.title.trim(), description: form.description.trim(), theme_label: form.theme_label.trim(), status: form.status, updated_at: new Date().toISOString() };
     let menuId = editingId;
@@ -139,7 +159,7 @@ export default function MenusPage() {
       if (error || !data) { setNotice("No se pudo crear el menú: " + (error?.message || "Error desconocido")); setSaving(false); return; }
       menuId = data.id;
     }
-    const { error: itemsError } = await supabase.from("menu_items").insert(form.items.map((item,index) => ({ menu_id: menuId, recipe_id: item.recipe_id, course: item.course, sort_order: index })));
+    const { error: itemsError } = await supabase.from("menu_items").insert(form.items.map((item,index) => ({ menu_id: menuId, recipe_id: item.recipe_id, course: item.course, section_name: item.section_name.trim() || "Otros", selection_count: item.selection_count, sort_order: index })));
     if (itemsError) {
       setNotice("El menú se guardó, pero no se pudieron guardar sus recetas: " + itemsError.message);
       setSaving(false);
@@ -184,13 +204,13 @@ export default function MenusPage() {
             {availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).map(recipe=><button type="button" key={recipe.id} className="lp-menu-recipe-option" onClick={()=>addRecipe(recipe.id)}><Plus size={15}/><span><strong>{recipe.title}</strong><small>{recipe.category} · {recipe.servings} pax · {recipe.status==="published"?"Publicada":"Borrador"}</small></span></button>)}
             {!availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).length && <p className="lp-muted small-text">No hay más recetas disponibles con esta búsqueda.</p>}
           </div>
-          <div className="lp-menu-section-head"><div><h3><Utensils size={17}/> Orden del menú</h3><p>Organiza los pases y cambia su categoría cuando lo necesites.</p></div></div>
-          {!form.items.length ? <div className="lp-week-empty"><ClipboardList size={26}/><strong>Aún no hay pases</strong><span>Añade recetas en el apartado anterior.</span></div> : <div className="lp-menu-items">{form.items.map((item,index)=><article className="lp-menu-item" key={item.recipe_id}><div className="lp-menu-item-order"><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,-1)} disabled={index===0} aria-label="Mover receta arriba"><ArrowUp size={15}/></button><span>{index+1}</span><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,1)} disabled={index===form.items.length-1} aria-label="Mover receta abajo"><ArrowDown size={15}/></button></div><div className="lp-menu-item-name"><strong>{item.recipe?.title || recipes.find(recipe=>recipe.id===item.recipe_id)?.title || "Receta"}</strong><small>{item.recipe?.servings || recipes.find(recipe=>recipe.id===item.recipe_id)?.servings || "—"} pax en la ficha original</small></div><label>Pase<select value={item.course} onChange={e=>changeItem(index,{course:e.target.value})}>{courses.map(course=><option key={course}>{course}</option>)}</select></label><button type="button" className="lp-icon-button lp-menu-remove" onClick={()=>removeItem(index)} aria-label="Quitar receta del menú"><Trash2 size={15}/></button></article>)}</div>}
+          <div className="lp-menu-section-head"><div><h3><Utensils size={17}/> Bloques y elección de platos</h3><p>Agrupa las recetas por bloque (por ejemplo, Primeros o Calientes) y define cuántas puede elegir el cliente. Deja el campo a cero para no fijar una regla.</p></div></div>
+          {!form.items.length ? <div className="lp-week-empty"><ClipboardList size={26}/><strong>Aún no hay pases</strong><span>Añade recetas en el apartado anterior.</span></div> : <div className="lp-menu-items">{form.items.map((item,index)=><article className="lp-menu-item" key={item.recipe_id}><div className="lp-menu-item-order"><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,-1)} disabled={index===0} aria-label="Mover receta arriba"><ArrowUp size={15}/></button><span>{index+1}</span><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,1)} disabled={index===form.items.length-1} aria-label="Mover receta abajo"><ArrowDown size={15}/></button></div><div className="lp-menu-item-name"><strong>{item.recipe?.title || recipes.find(recipe=>recipe.id===item.recipe_id)?.title || "Receta"}</strong><small>{item.recipe?.servings || recipes.find(recipe=>recipe.id===item.recipe_id)?.servings || "—"} pax en la ficha original</small></div><label>Bloque<input value={item.section_name} maxLength={80} onChange={e=>changeItem(index,{section_name:e.target.value})} placeholder="Ej. Primeros"/></label><label>Elegir de este bloque<input type="number" min={0} max={form.items.filter(row=>row.section_name===item.section_name).length} value={item.selection_count ?? 0} onChange={e=>changeItem(index,{selection_count:Number(e.target.value)>0?Number(e.target.value):null})}/></label><label>Pase<select value={item.course} onChange={e=>changeItem(index,{course:e.target.value})}>{courses.map(course=><option key={course}>{course}</option>)}</select></label><button type="button" className="lp-icon-button lp-menu-remove" onClick={()=>removeItem(index)} aria-label="Quitar receta del menú"><Trash2 size={15}/></button></article>)}</div>}
           <div className="lp-recipe-form-actions"><button type="button" className="lp-button lp-secondary" onClick={closeForm}>Cancelar</button><button type="submit" className="lp-button lp-primary" disabled={saving}><Save size={16}/>{saving?"Guardando…":"Guardar menú"}</button></div>
         </form>}
-        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <section className="lp-menu-grid">{menus.map(menu=>{const items=[...(menu.menu_items||[])].sort((a,b)=>a.sort_order-b.sort_order);return <article className="lp-card lp-menu-card" key={menu.id}><div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status==="published"?"Publicado":"Borrador"}</span>{menu.theme_label && <span className="lp-menu-theme">{menu.theme_label}</span>}</div><h2>{menu.title}</h2><p>{menu.description || "Sin descripción"}</p><div className="lp-menu-course-list">{items.map((item,index)=><div key={item.id || item.recipe_id} className="lp-menu-course"><span>{item.course}</span><strong>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</strong></div>)}</div><div className="lp-menu-card-footer"><span>{items.length} {items.length===1?"receta":"recetas"} · {dateLabel(menu.created_at)}</span><div><button type="button" className="lp-button lp-secondary" onClick={()=>setPrintMenuId(menu.id)}><Printer size={14}/> Imprimir menú</button>{isAdmin && <button type="button" className="lp-button lp-secondary" onClick={()=>startEdit(menu)}><Edit3 size={14}/> Editar</button>}{isAdmin && <button type="button" className="lp-icon-button" onClick={()=>void deleteMenu(menu)} aria-label={`Eliminar menú ${menu.title}`}><Trash2 size={15}/></button>}</div></div></article>})}</section>}
+        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <section className="lp-menu-grid">{menus.map(menu=>{const items=[...(menu.menu_items||[])].sort((a,b)=>a.sort_order-b.sort_order);return <article className="lp-card lp-menu-card" key={menu.id}><div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status==="published"?"Publicado":"Borrador"}</span>{menu.theme_label && <span className="lp-menu-theme">{menu.theme_label}</span>}</div><h2>{menu.title}</h2><p>{menu.description || "Sin descripción"}</p><div className="lp-menu-course-list">{Array.from(new Set(items.map(item=>item.section_name || item.course || "Otros"))).map(section=>{const grouped=items.filter(item=>(item.section_name || item.course || "Otros")===section);const chosen=grouped[0]?.selection_count;return <div className="lp-menu-section-preview" key={section}><h3>{section}{chosen ? <small>Elegir {chosen} de {grouped.length}</small> : <small>{grouped.length} opciones</small>}</h3>{grouped.map(item=><div key={item.id || item.recipe_id} className="lp-menu-course"><span>{item.course}</span><strong>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</strong></div>)}</div>})}</div><div className="lp-menu-card-footer"><span>{items.length} {items.length===1?"receta":"recetas"} · {dateLabel(menu.created_at)}</span><div><button type="button" className="lp-button lp-secondary" onClick={()=>setPrintMenuId(menu.id)}><Printer size={14}/> Imprimir menú</button>{isAdmin && <button type="button" className="lp-button lp-secondary" onClick={()=>startEdit(menu)}><Edit3 size={14}/> Editar</button>}{isAdmin && <button type="button" className="lp-icon-button" onClick={()=>void deleteMenu(menu)} aria-label={`Eliminar menú ${menu.title}`}><Trash2 size={15}/></button>}</div></div></article>})}</section>}
         <footer className="lp-footer">La Partida - Gestión de Cocina</footer>
-        {printMenuId && (() => { const menu = menus.find(item => item.id === printMenuId); if (!menu) return null; const items = [...(menu.menu_items || [])].sort((a,b) => a.sort_order-b.sort_order); return <section className="lp-menu-print-bundle" aria-hidden="true"><header><p className="lp-kicker">LA PARTIDA · MENÚ</p><h1>{menu.title}</h1>{menu.theme_label && <p className="lp-menu-print-theme">{menu.theme_label}</p>}{menu.description && <p className="lp-menu-print-description">{menu.description}</p>}</header><ol>{items.map((item,index) => <li key={item.id || item.recipe_id}><span>{item.course || "Pase"}</span><div><h2>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</h2>{item.recipes?.category && <p>{item.recipes.category}</p>}</div><strong>{index+1}</strong></li>)}</ol><footer>La Partida · {items.length} {items.length===1?"receta":"recetas"}</footer></section>; })()}
+        {printMenuId && (() => { const menu = menus.find(item => item.id === printMenuId); if (!menu) return null; const items = [...(menu.menu_items || [])].sort((a,b) => a.sort_order-b.sort_order); return <section className="lp-menu-print-bundle" aria-hidden="true"><header><p className="lp-kicker">LA PARTIDA · MENÚ</p><h1>{menu.title}</h1>{menu.theme_label && <p className="lp-menu-print-theme">{menu.theme_label}</p>}{menu.description && <p className="lp-menu-print-description">{menu.description}</p>}</header><div>{Array.from(new Set(items.map(item=>item.section_name || item.course || "Otros"))).map(section=>{const grouped=items.filter(item=>(item.section_name || item.course || "Otros")===section);const chosen=grouped[0]?.selection_count;return <section key={section}><h2>{section}{chosen ? ` · Elegir ${chosen} de ${grouped.length}` : ""}</h2><ol>{grouped.map((item,index)=><li key={item.id || item.recipe_id}><span>{item.course || "Pase"}</span><div><h3>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</h3>{item.recipes?.category && <p>{item.recipes.category}</p>}</div><strong>{index+1}</strong></li>)}</ol></section>})}</div><footer>La Partida · {items.length} {items.length===1?"receta":"recetas"}</footer></section>; })()}
       </div>
     </main>
   );
