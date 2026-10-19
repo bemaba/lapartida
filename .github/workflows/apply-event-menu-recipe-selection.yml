@@ -49,15 +49,17 @@ jobs:
         run: |
           set -euo pipefail
           supabase migration list --linked | tee /tmp/migrations-before.txt
-          SELECTED_VERSION="20261019170000"
           PENDING="$(awk -F'|' 'NR > 2 {
             local_version=$1; remote_version=$2
             gsub(/[^0-9]/, "", local_version)
             gsub(/[^0-9]/, "", remote_version)
             if (length(local_version) == 14 && remote_version == "") print local_version
           }' /tmp/migrations-before.txt | sort)"
-          if [ "$PENDING" != "$SELECTED_VERSION" ]; then
-            echo "Safety stop: expected only $SELECTED_VERSION pending, found:"
+          EXPECTED_ONLY="$(printf '%s\n' 20261019170000)"
+          EXPECTED_BOTH="$(printf '%s\n' 20261019160000 20261019170000 | sort)"
+          if [ "$PENDING" != "$EXPECTED_ONLY" ] && [ "$PENDING" != "$EXPECTED_BOTH" ]; then
+            echo "Safety stop: only the event-menu conversion (20261019160000) and the selected-recipes migration (20261019170000) may be pending."
+            echo "Detected pending versions:"
             printf '%s\n' "$PENDING"
             exit 1
           fi
