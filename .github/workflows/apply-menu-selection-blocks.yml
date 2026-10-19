@@ -1,0 +1,93 @@
+name: Apply menu selection blocks migration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-menu-selection-blocks.yml
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Escribe APPLY para confirmar"
+        required: true
+        type: choice
+        options:
+          - NO
+          - APPLY
+        default: NO
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  apply-menu-selection-blocks:
+    if: github.event_name == 'push' || inputs.confirm_apply == 'APPLY'
+    name: Apply and verify menu selection blocks migration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate expected migration
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/20261019130000_menu_selection_blocks.sql
+          echo "Selected migration: 20261019130000_menu_selection_blocks.sql"
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing repository secret SUPABASE_DB_PASSWORD" && exit 1)
+          supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify selected migration is the only pending migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-before.txt
+
+          SELECTED_VERSION="20261019130000"
+          PENDING="$(awk -F'|' 'NR > 2 {
+            local_version=$1; remote_version=$2
+            gsub(/[^0-9]/, "", local_version)
+            gsub(/[^0-9]/, "", remote_version)
+            if (length(local_version) == 14 && remote_version == "") print local_version
+          }' /tmp/migrations-before.txt | sort)"
+
+          if [ "$PENDING" != "$SELECTED_VERSION" ]; then
+            echo "Safety stop: only $SELECTED_VERSION may be pending for this deployment."
+            echo "Detected pending migrations:"
+            printf '%s\n' "$PENDING"
+            exit 1
+          fi
+
+      - name: Apply migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --linked
+
+      - name: Verify migration is applied
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261019130000.*20261019130000' /tmp/migrations-after.txt >/dev/null || {
+            echo "Verification failed: 20261019130000 is not registered as applied."
+            exit 1
+          }
