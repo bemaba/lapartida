@@ -649,10 +649,10 @@
 
 /* Menu editor modal: keep the list visible behind a focused, scrollable dialog. */
 .lp-menu-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(18,29,23,.58);backdrop-filter:blur(3px)}
-.lp-menu-modal{width:min(1100px,100%);max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 90px rgba(0,0,0,.28);margin:0}
-.lp-menu-modal .lp-card-title{position:sticky;top:-1px;z-index:3;padding:12px 0;background:var(--card,#fff)}
+.lp-menu-modal{width:min(1100px,100%);max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 90px rgba(0,0,0,.28);margin:0;position:relative;isolation:isolate;box-sizing:border-box;background:#fff!important;color:var(--ink)}
+.lp-menu-modal .lp-card-title{position:sticky;top:-1px;z-index:5;padding:12px 0;background:#fff!important;box-shadow:0 1px 0 rgba(31,53,41,.08)}
 .lp-menu-modal .lp-menu-picker{max-height:190px;overflow:auto}
-.lp-menu-modal .lp-recipe-form-actions{position:sticky;bottom:-1px;z-index:3;padding:12px 0;background:var(--card,#fff);border-top:1px solid var(--line)}
+.lp-menu-modal .lp-recipe-form-actions{position:sticky;bottom:-1px;z-index:5;padding:12px 0;background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -1px 0 rgba(31,53,41,.04)}
 .lp-menu-modal .lp-menu-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
 .lp-menu-modal .lp-menu-fields .wide{grid-column:1/-1}
 .lp-menu-modal .lp-menu-item{grid-template-columns:36px minmax(160px,1fr) minmax(120px,160px) minmax(150px,180px) minmax(110px,135px) 34px}
