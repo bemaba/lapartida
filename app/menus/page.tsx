@@ -82,7 +82,9 @@ export default function MenusPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
-  const [recipeSearch, setRecipeSearch] = useState("");\n  const [eventTemplate, setEventTemplate] = useState<EventTemplateKey | "">("");\n  const [recipeTargetSection, setRecipeTargetSection] = useState("Fríos");
+  const [recipeSearch, setRecipeSearch] = useState("");
+  const [eventTemplate, setEventTemplate] = useState<EventTemplateKey | "">("");
+  const [recipeTargetSection, setRecipeTargetSection] = useState("Fríos");
   const [menuSearch, setMenuSearch] = useState("");
   const [menuTypeFilter, setMenuTypeFilter] = useState("todos");
   const [menuStatusFilter, setMenuStatusFilter] = useState("todos");
