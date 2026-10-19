@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient, Session } from "@supabase/supabase-js";
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, Edit3, Filter, Plus, Printer, Save, Search, Trash2, Utensils, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChefHat, ClipboardList, ChevronLeft, ChevronRight, Edit3, Filter, Plus, Printer, Save, Search, Trash2, Utensils, X } from "lucide-react";
 import ModuleNavigation from "@/components/module-navigation";
 import AppHeader from "@/components/app-header";
 
@@ -54,6 +54,9 @@ export default function MenusPage() {
   const [menuSearch, setMenuSearch] = useState("");
   const [menuTypeFilter, setMenuTypeFilter] = useState("todos");
   const [menuStatusFilter, setMenuStatusFilter] = useState("todos");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [viewingMenuId, setViewingMenuId] = useState<string | null>(null);
   const [printMenuId, setPrintMenuId] = useState<string | null>(null);
 
   const isAdmin = profile?.role === "admin";
@@ -110,6 +113,12 @@ export default function MenusPage() {
     const matchesSearch = !search || [menu.title, menu.description, menu.theme_label, menuTypes.find(type => type.value === menu.menu_type)?.label || menu.menu_type].join(" ").toLocaleLowerCase("es").includes(search);
     return matchesSearch && (menuTypeFilter === "todos" || menu.menu_type === menuTypeFilter) && (menuStatusFilter === "todos" || menu.status === menuStatusFilter);
   }), [menus, menuSearch, menuTypeFilter, menuStatusFilter]);
+  const pageCount = Math.max(1, Math.ceil(filteredMenus.length / pageSize));
+  const pageMenus = filteredMenus.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const viewingMenu = menus.find(menu => menu.id === viewingMenuId) || null;
+
+  useEffect(() => { setCurrentPage(1); }, [menuSearch, menuTypeFilter, menuStatusFilter, pageSize]);
+  useEffect(() => { setCurrentPage(page => Math.min(page, pageCount)); }, [pageCount]);
 
   const startNew = () => {
     setEditingId(null);
@@ -290,7 +299,7 @@ export default function MenusPage() {
     if (!supabase || !isAdmin || !window.confirm(`¿Eliminar el menú «${menu.title}»? Las recetas originales no se borrarán.`)) return;
     const { error } = await supabase.from("menus").delete().eq("id", menu.id);
     if (error) setNotice("No se pudo eliminar el menú: " + error.message);
-    else { setNotice("Menú eliminado. Las recetas originales siguen en el recetario."); await refresh(); }
+    else { setViewingMenuId(null); setNotice("Menú eliminado. Las recetas originales siguen en el recetario."); await refresh(); }
   };
 
   if (!supabase) return <main className="lp-page"><section className="lp-card lp-login"><ChefHat size={30}/><h1>La Partida</h1><p>Falta configurar la conexión con Supabase.</p></section></main>;
@@ -400,7 +409,69 @@ export default function MenusPage() {
             <button type="button" className="lp-button lp-primary" onClick={() => setValidationMessage("")}>Volver al menú</button>
           </section>
         </div>}
-        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <><section className="lp-menu-filters" aria-label="Buscar y filtrar menús"><label className="lp-menu-filter-search"><Search size={17}/><input value={menuSearch} onChange={e=>setMenuSearch(e.target.value)} placeholder="Buscar por nombre, descripción o etiqueta…"/></label><label><Filter size={15}/> Tipo<select value={menuTypeFilter} onChange={e=>setMenuTypeFilter(e.target.value)}><option value="todos">Todos los tipos</option>{menuTypes.map(type=><option key={type.value} value={type.value}>{type.label}</option>)}</select></label><label><Filter size={15}/> Estado<select value={menuStatusFilter} onChange={e=>setMenuStatusFilter(e.target.value)}><option value="todos">Todos los estados</option><option value="published">Publicados</option><option value="draft">Borradores</option></select></label><span className="lp-menu-filter-count">{filteredMenus.length} de {menus.length} menús</span></section>{filteredMenus.length === 0 ? <section className="lp-card lp-menu-empty"><Search size={28}/><h2>No hay resultados</h2><p>Prueba con otra búsqueda o cambia los filtros.</p><button type="button" className="lp-button lp-secondary" onClick={()=>{setMenuSearch("");setMenuTypeFilter("todos");setMenuStatusFilter("todos");}}>Limpiar filtros</button></section> : <section className="lp-menu-grid">{filteredMenus.map(menu=>{const items=sortMenuItems(menu.menu_items||[]);return <article className="lp-card lp-menu-card" key={menu.id}><div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status==="published"?"Publicado":"Borrador"}</span><span className="lp-menu-theme">{menu.menu_type === "otro" ? (menu.theme_label || "Otro") : (menuTypes.find(type=>type.value===menu.menu_type)?.label || "Semanal / Fin de semana")}</span>{menu.menu_type !== "otro" && menu.theme_label && <span className="lp-menu-theme">{menu.theme_label}</span>}</div><h2>{menu.title}</h2><p>{menu.description || "Sin descripción"}</p><div className="lp-menu-course-list">{Array.from(new Set(items.map(item=>item.section_name || item.course || "Otros"))).map(section=>{const grouped=items.filter(item=>(item.section_name || item.course || "Otros")===section);const chosen=grouped[0]?.selection_count;return <div className="lp-menu-section-preview" key={section}><h3>{section}{chosen ? <small>Elegir {chosen} de {grouped.length}</small> : <small>{grouped.length} opciones</small>}</h3>{grouped.map(item=><div key={item.id || item.recipe_id} className="lp-menu-course"><span>{item.course}</span><strong>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</strong></div>)}</div>})}</div><div className="lp-menu-card-footer"><span>{items.length} {items.length===1?"receta":"recetas"} · {dateLabel(menu.created_at)}</span><div><button type="button" className="lp-button lp-secondary" onClick={()=>setPrintMenuId(menu.id)}><Printer size={14}/> Imprimir menú</button>{isAdmin && <button type="button" className="lp-button lp-secondary" onClick={()=>startEdit(menu)}><Edit3 size={14}/> Editar</button>}{isAdmin && <button type="button" className="lp-icon-button" onClick={()=>void deleteMenu(menu)} aria-label={`Eliminar menú ${menu.title}`}><Trash2 size={15}/></button>}</div></div></article>})}</section>}</>}
+        {loading ? <div className="lp-week-empty">Cargando menús…</div> : menus.length === 0 ? <section className="lp-card lp-menu-empty"><Utensils size={30}/><h2>Todavía no hay menús</h2><p>{isAdmin?"Crea el primero con recetas que ya existen en el recetario.":"Cuando se publique un menú, aparecerá aquí."}</p>{isAdmin && <button className="lp-button lp-primary" onClick={startNew}><Plus size={16}/> Crear primer menú</button>}</section> : <><section className="lp-menu-filters" aria-label="Buscar y filtrar menús"><label className="lp-menu-filter-search"><Search size={17}/><input value={menuSearch} onChange={e=>setMenuSearch(e.target.value)} placeholder="Buscar por nombre, descripción o etiqueta…"/></label><label><Filter size={15}/> Tipo<select value={menuTypeFilter} onChange={e=>setMenuTypeFilter(e.target.value)}><option value="todos">Todos los tipos</option>{menuTypes.map(type=><option key={type.value} value={type.value}>{type.label}</option>)}</select></label><label><Filter size={15}/> Estado<select value={menuStatusFilter} onChange={e=>setMenuStatusFilter(e.target.value)}><option value="todos">Todos los estados</option><option value="published">Publicados</option><option value="draft">Borradores</option></select></label><span className="lp-menu-filter-count">{filteredMenus.length} de {menus.length} menús</span></section>{filteredMenus.length === 0 ? <section className="lp-card lp-menu-empty"><Search size={28}/><h2>No hay resultados</h2><p>Prueba con otra búsqueda o cambia los filtros.</p><button type="button" className="lp-button lp-secondary" onClick={()=>{setMenuSearch("");setMenuTypeFilter("todos");setMenuStatusFilter("todos");}}>Limpiar filtros</button></section> : <>
+          <section className="lp-menu-grid lp-menu-grid-compact">
+            {pageMenus.map(menu => {
+              const items = sortMenuItems(menu.menu_items || []);
+              const sections = Array.from(new Set(items.map(item => item.section_name || item.course || "Otros")));
+              const typeLabel = menu.menu_type === "otro" ? (menu.theme_label || "Otro / personalizado") : (menuTypes.find(type => type.value === menu.menu_type)?.label || "Semanal / Fin de semana");
+              return <article className="lp-card lp-menu-card lp-menu-card-compact" key={menu.id} role="button" tabIndex={0} aria-label={`Ver menú ${menu.title}`} onClick={() => setViewingMenuId(menu.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewingMenuId(menu.id); } }}>
+                <div className="lp-menu-card-top"><span className={`lp-recipe-status ${menu.status}`}>{menu.status === "published" ? "Publicado" : "Borrador"}</span><span className="lp-menu-theme">{typeLabel}</span></div>
+                <h2>{menu.title}</h2>
+                <p className="lp-menu-card-description">{menu.description || "Sin descripción"}</p>
+                {menu.theme_label && menu.menu_type !== "otro" && <p className="lp-menu-card-label">{menu.theme_label}</p>}
+                <div className="lp-menu-card-summary"><span><BookOpen size={14}/>{items.length} {items.length === 1 ? "receta" : "recetas"}</span><span><Utensils size={14}/>{sections.length} {sections.length === 1 ? "bloque" : "bloques"}</span></div>
+                <div className="lp-menu-card-footer"><span>{dateLabel(menu.created_at)}</span><div><button type="button" className="lp-button lp-secondary" onClick={event => { event.stopPropagation(); setPrintMenuId(menu.id); }}><Printer size={14}/> Imprimir</button><button type="button" className="lp-button lp-primary" onClick={event => { event.stopPropagation(); setViewingMenuId(menu.id); }}><BookOpen size={14}/> Ver menú</button></div></div>
+              </article>;
+            })}
+          </section>
+          <nav className="lp-menu-pagination" aria-label="Paginación de menús">
+            <span>Mostrando {filteredMenus.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, filteredMenus.length)} de {filteredMenus.length} menús</span>
+            <div className="lp-menu-pagination-controls">
+              <label>Por página<select value={pageSize} onChange={event => setPageSize(Number(event.target.value))}>{[4,8,12,16,20,24].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+              <button type="button" className="lp-icon-button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => setCurrentPage(page => Math.max(1, page - 1))}><ChevronLeft size={17}/></button>
+              <strong>Página {currentPage} de {pageCount}</strong>
+              <button type="button" className="lp-icon-button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => setCurrentPage(page => Math.min(pageCount, page + 1))}><ChevronRight size={17}/></button>
+            </div>
+          </nav>
+        </>}
+        </>}
+        {viewingMenu && <div className="lp-menu-detail-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setViewingMenuId(null); }}>
+          <section className="lp-menu-detail-modal" role="dialog" aria-modal="true" aria-labelledby="lp-menu-detail-title">
+            <header className="lp-menu-detail-header">
+              <div><span className="lp-kicker">DETALLE DEL MENÚ</span><h2 id="lp-menu-detail-title">{viewingMenu.title}</h2><div className="lp-menu-detail-badges"><span className={`lp-recipe-status ${viewingMenu.status}`}>{viewingMenu.status === "published" ? "Publicado" : "Borrador"}</span><span className="lp-menu-theme">{viewingMenu.menu_type === "otro" ? (viewingMenu.theme_label || "Otro / personalizado") : (menuTypes.find(type => type.value === viewingMenu.menu_type)?.label || "Semanal / Fin de semana")}</span></div></div>
+              <button type="button" className="lp-icon-button" onClick={() => setViewingMenuId(null)} aria-label="Cerrar detalle"><X size={17}/></button>
+            </header>
+            <div className="lp-menu-detail-body">
+              {viewingMenu.description && <p className="lp-menu-detail-description">{viewingMenu.description}</p>}
+              <div className="lp-menu-detail-meta">
+                <div><small>Tipo de menú</small><strong>{viewingMenu.menu_type === "otro" ? "Otro / personalizado" : (menuTypes.find(type => type.value === viewingMenu.menu_type)?.label || "Semanal / Fin de semana")}</strong></div>
+                {viewingMenu.theme_label && <div><small>Etiqueta</small><strong>{viewingMenu.theme_label}</strong></div>}
+                <div><small>Estado</small><strong>{viewingMenu.status === "published" ? "Publicado" : "Borrador"}</strong></div>
+                <div><small>Creado</small><strong>{dateLabel(viewingMenu.created_at)}</strong></div>
+                <div><small>Recetas</small><strong>{(viewingMenu.menu_items || []).length}</strong></div>
+              </div>
+              <div className="lp-menu-detail-recipes">
+                <div className="lp-menu-detail-section-heading"><h3>Catálogo de platos</h3><span>{(viewingMenu.menu_items || []).length} opciones</span></div>
+                {!viewingMenu.menu_items?.length ? <p className="lp-muted small-text">Este menú todavía no tiene recetas.</p> : sortMenuItems(viewingMenu.menu_items || []).reduce<Array<{name:string;items:Array<MenuItem & {recipes?:Recipe|null}>}>>((groups,item) => {
+                  const name = item.section_name || item.course || "Otros";
+                  const found = groups.find(group => group.name === name);
+                  if (found) found.items.push(item); else groups.push({ name, items: [item] });
+                  return groups;
+                }, []).map(group => {
+                  const chosen = group.items[0]?.selection_count;
+                  return <section className="lp-menu-detail-group" key={group.name}><header><h4>{group.name}</h4><span>{chosen ? `Elegir ${chosen} de ${group.items.length}` : `${group.items.length} opciones`}</span></header><ul>{group.items.map(item => <li key={item.id || item.recipe_id}><span>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</span><small>{item.course || "Pase"}{item.recipes?.category ? ` · ${item.recipes.category}` : ""}</small></li>)}</ul></section>;
+                })}
+              </div>
+            </div>
+            <footer className="lp-menu-detail-actions">
+              <button type="button" className="lp-button lp-secondary" onClick={() => setViewingMenuId(null)}>Cerrar</button>
+              <button type="button" className="lp-button lp-secondary" onClick={() => setPrintMenuId(viewingMenu.id)}><Printer size={15}/> Imprimir</button>
+              {isAdmin && <button type="button" className="lp-button lp-danger" onClick={() => void deleteMenu(viewingMenu)}><Trash2 size={15}/> Eliminar</button>}
+              {isAdmin && <button type="button" className="lp-button lp-primary" onClick={() => { const menu = viewingMenu; setViewingMenuId(null); startEdit(menu); }}><Edit3 size={15}/> Editar menú</button>}
+            </footer>
+          </section>
+        </div>}
         <footer className="lp-footer">La Partida - Gestión de Cocina</footer>
         {printMenuId && (() => { const menu = menus.find(item => item.id === printMenuId); if (!menu) return null; const items = sortMenuItems(menu.menu_items || []); return <section className="lp-menu-print-bundle" aria-hidden="true"><header><p className="lp-kicker">LA PARTIDA · MENÚ</p><h1>{menu.title}</h1>{menu.theme_label && <p className="lp-menu-print-theme">{menu.theme_label}</p>}{menu.description && <p className="lp-menu-print-description">{menu.description}</p>}</header><div>{Array.from(new Set(items.map(item=>item.section_name || item.course || "Otros"))).map(section=>{const grouped=items.filter(item=>(item.section_name || item.course || "Otros")===section);const chosen=grouped[0]?.selection_count;return <section key={section}><h2>{section}{chosen ? ` · Elegir ${chosen} de ${grouped.length}` : ""}</h2><ol>{grouped.map((item,index)=><li key={item.id || item.recipe_id}><span>{item.course || "Pase"}</span><div><h3>{item.recipes?.title || item.recipe?.title || "Receta no disponible"}</h3>{item.recipes?.category && <p>{item.recipes.category}</p>}</div><strong>{index+1}</strong></li>)}</ol></section>})}</div><footer>La Partida · {items.length} {items.length===1?"receta":"recetas"}</footer></section>; })()}
       </div>
