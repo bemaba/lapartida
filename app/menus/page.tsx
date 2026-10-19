@@ -17,14 +17,14 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT
 const supabase = url && key ? createClient(url, key) : null;
 const courses = ["Aperitivo", "Entrante", "Principal", "Guarnición", "Postre", "Otro"];
 const menuTypes = [{ value: "semanal", label: "Semanal / Fin de semana" }, { value: "tematico", label: "Temático" }, { value: "evento", label: "Evento" }, { value: "otro", label: "Otro / personalizado" }] as const;
-const eventTemplates = [
-  { value: "light", label: "Experiencia Gastronómica Light", cold: 4, hot: 3, dessert: 2 },
-  { value: "i", label: "Experiencia Gastronómica I", cold: 4, hot: 3, dessert: 2 },
-  { value: "ii", label: "Experiencia Gastronómica II", cold: 4, hot: 3, dessert: 2 },
-  { value: "iii", label: "Experiencia Gastronómica III", cold: 4, hot: 3, dessert: 2 },
-  { value: "iv", label: "Experiencia Gastronómica IV", cold: 4, hot: 3, dessert: 2 },
+const eventBlocks = [
+  { name: "Fríos", defaultCount: 4 },
+  { name: "Calientes", defaultCount: 3 },
+  { name: "Postres", defaultCount: 2 },
 ] as const;
-type EventTemplateKey = typeof eventTemplates[number]["value"];
+type EventBlockName = typeof eventBlocks[number]["name"];
+type EventBlockCounts = Record<EventBlockName, number>;
+const defaultEventBlockCounts: EventBlockCounts = { "Fríos": 4, "Calientes": 3, "Postres": 2 };
 const sectionRank = (section: string) => { const value = section.trim().toLocaleLowerCase("es"); if (["frío", "fríos"].includes(value)) return 0; if (["caliente", "calientes"].includes(value)) return 1; if (["postre", "postres"].includes(value)) return 2; if (["estación", "estaciones"].includes(value)) return 3; return 4; };
 const catalogSection = (category: string, menuType: "semanal" | "tematico" | "evento" | "otro", course: string) => { const value = category.trim().toLocaleLowerCase("es"); if (value === "frío" || value === "frio") return "Fríos"; if (value === "caliente") return "Calientes"; if (value === "postre") return "Postres"; if (value === "estación" || value === "estacion") return "Estaciones"; if (course === "Postre") return "Postres"; if (menuType === "evento") return ["Principal", "Guarnición"].includes(course) ? "Calientes" : "Fríos"; if (course === "Entrante" || course === "Aperitivo") return "Primeros"; if (course === "Principal" || course === "Guarnición") return "Segundos"; return "Primeros"; };
 const sortMenuItems = <T extends { section_name?: string; course?: string; sort_order: number; recipe?: { category?: string; title?: string } | null; recipes?: { category?: string; title?: string } | null }>(items: T[]) => [...items].sort((a,b) => { const sectionA = a.section_name || a.recipe?.category || a.recipes?.category || a.course || "Otros"; const sectionB = b.section_name || b.recipe?.category || b.recipes?.category || b.course || "Otros"; return sectionRank(sectionA)-sectionRank(sectionB) || a.sort_order-b.sort_order || String(a.recipe?.title || a.recipes?.title || "").localeCompare(String(b.recipe?.title || b.recipes?.title || ""), "es"); });
@@ -46,9 +46,11 @@ export default function MenusPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [recipeSearch, setRecipeSearch] = useState("");
-  const [eventTemplate, setEventTemplate] = useState<EventTemplateKey | "">("");
-  const [recipeTargetSection, setRecipeTargetSection] = useState("Fríos");
-  const [eventBlockCounts, setEventBlockCounts] = useState({ "Fríos": 4, "Calientes": 3, "Postres": 2 });
+  const [recipeTargetSection, setRecipeTargetSection] = useState<EventBlockName>("Fríos");
+  const [eventBlockCounts, setEventBlockCounts] = useState<EventBlockCounts>(defaultEventBlockCounts);
+  const [dishPickerOpen, setDishPickerOpen] = useState(false);
+  const [pendingRecipeIds, setPendingRecipeIds] = useState<string[]>([]);
+  const [validationMessage, setValidationMessage] = useState("");
   const [menuSearch, setMenuSearch] = useState("");
   const [menuTypeFilter, setMenuTypeFilter] = useState("todos");
   const [menuStatusFilter, setMenuStatusFilter] = useState("todos");
@@ -109,37 +111,48 @@ export default function MenusPage() {
     return matchesSearch && (menuTypeFilter === "todos" || menu.menu_type === menuTypeFilter) && (menuStatusFilter === "todos" || menu.status === menuStatusFilter);
   }), [menus, menuSearch, menuTypeFilter, menuStatusFilter]);
 
-  const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setEventTemplate(""); setRecipeTargetSection("Fríos"); setEventBlockCounts({ "Fríos": 4, "Calientes": 3, "Postres": 2 }); setFormOpen(true); setNotice(""); };
+  const startNew = () => {
+    setEditingId(null);
+    setForm(blankForm());
+    setRecipeSearch("");
+    setRecipeTargetSection("Fríos");
+    setEventBlockCounts({ ...defaultEventBlockCounts });
+    setDishPickerOpen(false);
+    setPendingRecipeIds([]);
+    setValidationMessage("");
+    setFormOpen(true);
+    setNotice("");
+  };
   const startEdit = (menu: MenuRecord) => {
     const menuType = menu.menu_type || "semanal";
-    const inferredTemplate = menuType === "evento"
-      ? eventTemplates.find(template => template.label === (menu.theme_label || ""))?.value || ""
-      : "";
-    setEditingId(menu.id);
-    setEventTemplate(inferredTemplate);
-    setRecipeTargetSection("Fríos");
     const savedItems = sortMenuItems(menu.menu_items || []);
-    setEventBlockCounts({
+    const counts: EventBlockCounts = {
       "Fríos": savedItems.find(item => item.section_name === "Fríos")?.selection_count ?? 4,
       "Calientes": savedItems.find(item => item.section_name === "Calientes")?.selection_count ?? 3,
       "Postres": savedItems.find(item => item.section_name === "Postres")?.selection_count ?? 2
-    });
+    };
+    setEditingId(menu.id);
+    setRecipeTargetSection("Fríos");
+    setEventBlockCounts(counts);
+    setDishPickerOpen(false);
+    setPendingRecipeIds([]);
+    setValidationMessage("");
     setForm({
       title: menu.title,
       description: menu.description || "",
       theme_label: menu.theme_label || "",
       menu_type: menuType,
       status: menu.status,
-      items: sortMenuItems(menu.menu_items || []).map(item => {
+      items: savedItems.map(item => {
         const sectionName = item.section_name || item.course || "Otros";
         const defaultCount = menuType === "evento"
-          ? sectionName === "Fríos" ? eventBlockCounts["Fríos"] : sectionName === "Calientes" ? eventBlockCounts["Calientes"] : sectionName === "Postres" ? eventBlockCounts["Postres"] : null
+          ? sectionName === "Fríos" ? counts["Fríos"] : sectionName === "Calientes" ? counts["Calientes"] : sectionName === "Postres" ? counts["Postres"] : null
           : null;
         return {
           recipe_id: item.recipe_id,
           course: item.course,
           section_name: sectionName,
-          selection_count: item.selection_count ?? defaultCount,
+          selection_count: menuType === "evento" ? defaultCount : item.selection_count ?? null,
           sort_order: item.sort_order,
           recipe: item.recipes || undefined
         };
@@ -149,19 +162,49 @@ export default function MenusPage() {
     setFormOpen(true);
     setNotice("");
   };
-  const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(blankForm()); };
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(blankForm());
+    setDishPickerOpen(false);
+    setPendingRecipeIds([]);
+    setValidationMessage("");
+  };
   const addRecipe = (recipeId: string) => {
     if (!recipeId || form.items.some(item => item.recipe_id === recipeId)) return;
     const recipe = recipes.find(item => item.id === recipeId);
     if (!recipe) return;
     const defaultCourse = courses.includes(recipe.category) ? recipe.category : "Otro";
+    setForm(current => ({ ...current, items: [...current.items, {
+      recipe_id: recipe.id,
+      course: defaultCourse,
+      section_name: catalogSection(recipe.category, current.menu_type, defaultCourse),
+      selection_count: null,
+      sort_order: current.items.length,
+      recipe
+    }] }));
+  };
+  const addSelectedEventRecipes = () => {
+    const selectedIds = [...pendingRecipeIds];
     setForm(current => {
-      const sectionName = current.menu_type === "evento" ? recipeTargetSection : catalogSection(recipe.category, current.menu_type, defaultCourse);
-      const selectionCount = current.menu_type === "evento"
-        ? sectionName === "Fríos" ? 4 : sectionName === "Calientes" ? 3 : sectionName === "Postres" ? 2 : null
-        : null;
-      return { ...current, items: [...current.items, { recipe_id: recipe.id, course: defaultCourse, section_name: sectionName, selection_count: selectionCount, sort_order: current.items.length, recipe }] };
+      const existingIds = new Set(current.items.map(item => item.recipe_id));
+      const additions = selectedIds
+        .filter(id => !existingIds.has(id))
+        .map(id => recipes.find(recipe => recipe.id === id))
+        .filter((recipe): recipe is Recipe => Boolean(recipe))
+        .map(recipe => ({
+          recipe_id: recipe.id,
+          course: courses.includes(recipe.category) ? recipe.category : "Otro",
+          section_name: recipeTargetSection,
+          selection_count: eventBlockCounts[recipeTargetSection],
+          sort_order: current.items.length,
+          recipe
+        }));
+      return { ...current, items: [...current.items, ...additions].map((item,index) => ({ ...item, sort_order: index })) };
     });
+    setDishPickerOpen(false);
+    setPendingRecipeIds([]);
+    setRecipeSearch("");
   };
   const changeItem = (index: number, patch: Partial<MenuItem>) => setForm(current => {
     const target = current.items[index];
@@ -183,29 +226,41 @@ export default function MenusPage() {
   const saveMenu = async (event: FormEvent) => {
     event.preventDefault();
     if (!supabase || !session || !profile?.active || !isAdmin) return;
-    if (form.menu_type === "otro" && !form.theme_label.trim()) { setNotice("Indica el nombre de la categoría personalizada."); return; }
-    if (form.items.length === 0) { setNotice("Añade al menos una receta al menú."); return; }
+    if (form.menu_type === "otro" && !form.theme_label.trim()) {
+      setValidationMessage("Indica el nombre de la categoría personalizada antes de guardar.");
+      return;
+    }
     const sectionGroups = new Map<string, MenuItem[]>();
     form.items.forEach(item => {
       const name = item.section_name.trim() || "Otros";
       sectionGroups.set(name, [...(sectionGroups.get(name) || []), item]);
     });
-    sectionGroups.forEach((items, name) => {
-      const counts = new Set(items.map(item => item.selection_count ?? null));
-      if (counts.size > 1) {
-        setNotice(`El bloque «${name}» tiene reglas de elección distintas. Usa el mismo número para todo el bloque.`);
-        return;
-      }
-      const count = items[0].selection_count;
-      if (count !== null && count > items.length) {
-        setNotice(`El bloque «${name}» permite elegir ${count}, pero solo tiene ${items.length} recetas.`);
-      }
-    });
-    const invalidSelection = Array.from(sectionGroups.entries()).some(([name, items]) => {
-      const counts = new Set(items.map(item => item.selection_count ?? null));
-      return counts.size > 1 || (items[0].selection_count !== null && items[0].selection_count > items.length);
-    });
-    if (invalidSelection) return;
+    const validationErrors: string[] = [];
+    if (form.menu_type === "evento") {
+      eventBlocks.forEach(block => {
+        const available = form.items.filter(item => item.section_name === block.name).length;
+        const requested = eventBlockCounts[block.name];
+        if (available < requested) {
+          validationErrors.push(`${block.name}: el evento está configurado para ${requested} pasos a elegir, pero solo has añadido ${available} platos. Añade al menos ${requested - available} plato(s) más o reduce el número de pasos.`);
+        }
+      });
+    } else {
+      sectionGroups.forEach((items, name) => {
+        const counts = new Set(items.map(item => item.selection_count ?? null));
+        if (counts.size > 1) validationErrors.push(`El bloque «${name}» tiene reglas de elección distintas. Usa el mismo número para todo el bloque.`);
+        const count = items[0]?.selection_count;
+        if (count !== null && count !== undefined && count > items.length) {
+          validationErrors.push(`El bloque «${name}» permite elegir ${count}, pero solo tiene ${items.length} recetas.`);
+        }
+      });
+    }
+    if (form.items.length === 0 && form.menu_type !== "evento") {
+      validationErrors.push("Añade al menos una receta al menú.");
+    }
+    if (validationErrors.length > 0) {
+      setValidationMessage(validationErrors.join("\n\n"));
+      return;
+    }
     setSaving(true); setNotice("");
     const payload = { title: form.title.trim(), description: form.description.trim(), theme_label: form.theme_label.trim(), menu_type: form.menu_type, status: form.status, updated_at: new Date().toISOString() };
     let menuId = editingId;
