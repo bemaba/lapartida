@@ -48,6 +48,7 @@ export default function MenusPage() {
   const [recipeSearch, setRecipeSearch] = useState("");
   const [eventTemplate, setEventTemplate] = useState<EventTemplateKey | "">("");
   const [recipeTargetSection, setRecipeTargetSection] = useState("Fríos");
+  const [eventBlockCounts, setEventBlockCounts] = useState({ "Fríos": 4, "Calientes": 3, "Postres": 2 });
   const [menuSearch, setMenuSearch] = useState("");
   const [menuTypeFilter, setMenuTypeFilter] = useState("todos");
   const [menuStatusFilter, setMenuStatusFilter] = useState("todos");
@@ -108,7 +109,7 @@ export default function MenusPage() {
     return matchesSearch && (menuTypeFilter === "todos" || menu.menu_type === menuTypeFilter) && (menuStatusFilter === "todos" || menu.status === menuStatusFilter);
   }), [menus, menuSearch, menuTypeFilter, menuStatusFilter]);
 
-  const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setEventTemplate(""); setRecipeTargetSection("Fríos"); setFormOpen(true); setNotice(""); };
+  const startNew = () => { setEditingId(null); setForm(blankForm()); setRecipeSearch(""); setEventTemplate(""); setRecipeTargetSection("Fríos"); setEventBlockCounts({ "Fríos": 4, "Calientes": 3, "Postres": 2 }); setFormOpen(true); setNotice(""); };
   const startEdit = (menu: MenuRecord) => {
     const menuType = menu.menu_type || "semanal";
     const inferredTemplate = menuType === "evento"
@@ -117,6 +118,12 @@ export default function MenusPage() {
     setEditingId(menu.id);
     setEventTemplate(inferredTemplate);
     setRecipeTargetSection("Fríos");
+    const savedItems = sortMenuItems(menu.menu_items || []);
+    setEventBlockCounts({
+      "Fríos": savedItems.find(item => item.section_name === "Fríos")?.selection_count ?? 4,
+      "Calientes": savedItems.find(item => item.section_name === "Calientes")?.selection_count ?? 3,
+      "Postres": savedItems.find(item => item.section_name === "Postres")?.selection_count ?? 2
+    });
     setForm({
       title: menu.title,
       description: menu.description || "",
@@ -126,7 +133,7 @@ export default function MenusPage() {
       items: sortMenuItems(menu.menu_items || []).map(item => {
         const sectionName = item.section_name || item.course || "Otros";
         const defaultCount = menuType === "evento"
-          ? sectionName === "Fríos" ? 4 : sectionName === "Calientes" ? 3 : sectionName === "Postres" ? 2 : null
+          ? sectionName === "Fríos" ? eventBlockCounts["Fríos"] : sectionName === "Calientes" ? eventBlockCounts["Calientes"] : sectionName === "Postres" ? eventBlockCounts["Postres"] : null
           : null;
         return {
           recipe_id: item.recipe_id,
@@ -252,16 +259,16 @@ export default function MenusPage() {
             <label className="wide">Descripción<textarea rows={2} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Concepto, temporada o contexto del menú…"/></label>
             <label>Estado<select value={form.status} onChange={e=>setForm({...form,status:e.target.value as "draft"|"published"})}><option value="draft">Borrador</option><option value="published">Publicado</option></select></label>
           </div>
-          {form.menu_type === "evento" && <section className="lp-event-template"><label>Plantilla de experiencia gastronómica<select value={eventTemplate} onChange={e=>{const key=e.target.value as EventTemplateKey | "";setEventTemplate(key);const t=eventTemplates.find(x=>x.value===key);setRecipeTargetSection("Fríos");setForm(current=>({...current,theme_label:t?.label || current.theme_label,items:current.items.map(item=>({...item,selection_count:item.section_name==="Fríos"?4:item.section_name==="Calientes"?3:item.section_name==="Postres"?2:item.selection_count}))}));}}><option value="">Evento personalizado (sin plantilla)</option>{eventTemplates.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>{eventTemplate && <p>Bloques precargados: Fríos — 4 a elegir · Calientes — 3 a elegir · Postres — 2 a elegir. Puedes añadir tantas recetas como quieras en cada bloque; el número indica cuántas podrá elegir el cliente.</p>}</section>}
-          <div className="lp-menu-section-head"><div><h3><BookOpen size={17}/> Añadir recetas</h3><p>Selecciona una receta existente. No se copia ni se crea otra ficha.</p></div><span>{form.items.length} pases</span></div>
-          {form.menu_type === "evento" && <label className="lp-menu-target-section">Añadir al bloque<select value={recipeTargetSection} onChange={e=>setRecipeTargetSection(e.target.value)}><option>Fríos</option><option>Calientes</option><option>Postres</option><option>Estaciones</option></select></label>}
+          {form.menu_type === "evento" && <section className="lp-event-template"><label>Plantilla de experiencia gastronómica<select value={eventTemplate} onChange={e=>{const key=e.target.value as EventTemplateKey | "";setEventTemplate(key);const t=eventTemplates.find(x=>x.value===key);setRecipeTargetSection("Fríos");setForm(current=>({...current,theme_label:t?.label || current.theme_label,items:current.items.map(item=>({...item,selection_count:item.section_name==="Fríos"?eventBlockCounts["Fríos"]:item.section_name==="Calientes"?eventBlockCounts["Calientes"]:item.section_name==="Postres"?eventBlockCounts["Postres"]:item.selection_count}))}));}}><option value="">Evento personalizado (sin plantilla)</option>{eventTemplates.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>{eventTemplate && <p>Bloques precargados: Fríos — 4 a elegir · Calientes — 3 a elegir · Postres — 2 a elegir. Puedes añadir tantas recetas como quieras en cada bloque; el número indica cuántas podrá elegir el cliente.</p>}</section>}
+          <div className="lp-menu-section-head"><div><h3><BookOpen size={17}/> {form.menu_type==="evento"?"Buscador de platos":"Añadir recetas"}</h3><p>Selecciona una receta existente. No se copia ni se crea otra ficha.</p></div><span>{form.items.length} pases</span></div>
+          {form.menu_type === "evento" && <p className="lp-event-search-target">Añadiendo platos a: <strong>{recipeTargetSection}</strong>. Pulsa «Añadir plato» en otro bloque para cambiar el destino.</p>}
           <label className="lp-menu-search">Buscar receta<input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Nombre, categoría o etiqueta…"/></label>
           <div className="lp-menu-picker">
             {availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).map(recipe=><button type="button" key={recipe.id} className="lp-menu-recipe-option" onClick={()=>addRecipe(recipe.id)}><Plus size={15}/><span><strong>{recipe.title}</strong><small>{recipe.category} · {recipe.servings} pax · {recipe.status==="published"?"Publicada":"Borrador"}</small></span></button>)}
             {!availableRecipes.filter(recipe=>!form.items.some(item=>item.recipe_id===recipe.id)).length && <p className="lp-muted small-text">No hay más recetas disponibles con esta búsqueda.</p>}
           </div>
           <div className="lp-menu-section-head"><div><h3><Utensils size={17}/> Bloques y elección de platos</h3><p>{form.menu_type==="evento"?"En eventos se proponen Fríos, Calientes y Postres.":"En menús semanales y temáticos se proponen Primeros, Segundos y Postres."} Puedes editar el nombre del bloque en cada receta. La elección es opcional.</p></div></div>
-          {form.menu_type === "evento" && <div className="lp-event-block-summary">{([{name:"Fríos",count:4},{name:"Calientes",count:3},{name:"Postres",count:2}] as const).map(block=><div key={block.name}><strong>{block.name}</strong><span>{block.count} a elegir</span><small>{form.items.filter(item=>item.section_name===block.name).length} opciones añadidas</small></div>)}</div>}
+          {form.menu_type === "evento" && <div className="lp-event-blocks">{([{name:"Fríos",key:"Fríos" as const},{name:"Calientes",key:"Calientes" as const},{name:"Postres",key:"Postres" as const}]).map(block=><section className="lp-event-block-card" key={block.key}><div className="lp-event-block-heading"><h4>{block.name}</h4><span>{form.items.filter(item=>item.section_name===block.key).length} platos añadidos</span></div><label>Número de pasos<select value={eventBlockCounts[block.key]} onChange={e=>{const count=Number(e.target.value);setEventBlockCounts(current=>({...current,[block.key]:count}));setForm(current=>({...current,items:current.items.map(item=>item.section_name===block.key?{...item,selection_count:count}:item)}));}}>{Array.from({length:20},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}</select></label><button type="button" className="lp-button lp-secondary lp-event-add-dish" onClick={()=>{setRecipeTargetSection(block.key);setRecipeSearch("");}}><Plus size={15}/> Añadir plato</button></section>)}</div>}
           {!form.items.length ? <div className="lp-week-empty"><ClipboardList size={26}/><strong>Aún no hay pases</strong><span>Añade recetas en el apartado anterior.</span></div> : <div className="lp-menu-items">{form.items.map((item,index)=><article className="lp-menu-item" key={item.recipe_id}><div className="lp-menu-item-order"><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,-1)} disabled={index===0} aria-label="Mover receta arriba"><ArrowUp size={15}/></button><span>{index+1}</span><button type="button" className="lp-icon-button" onClick={()=>moveItem(index,1)} disabled={index===form.items.length-1} aria-label="Mover receta abajo"><ArrowDown size={15}/></button></div><div className="lp-menu-item-name"><strong>{item.recipe?.title || recipes.find(recipe=>recipe.id===item.recipe_id)?.title || "Receta"}</strong><small>{item.recipe?.servings || recipes.find(recipe=>recipe.id===item.recipe_id)?.servings || "—"} pax en la ficha original</small></div><label>Bloque<input value={item.section_name} maxLength={80} onChange={e=>changeItem(index,{section_name:e.target.value})} placeholder="Ej. Primeros"/></label><label>Elección del bloque<select value={item.selection_count===null?"all":String(item.selection_count)} onChange={e=>changeItem(index,{selection_count:e.target.value==="all"?null:Number(e.target.value)})}><option value="all">Todos los platos</option>{Array.from({length:Math.max(form.items.filter(row=>row.section_name===item.section_name).length,form.menu_type==="evento"?(item.section_name==="Fríos"?4:item.section_name==="Calientes"?3:item.section_name==="Postres"?2:0):0)},(_,i)=>i+1).map(n=><option key={n} value={n}>{form.menu_type==="evento"?`Elegir ${n} a elegir`:`Elegir ${n} de ${form.items.filter(row=>row.section_name===item.section_name).length}`}</option>)}</select></label><label>Pase<select value={item.course} onChange={e=>changeItem(index,{course:e.target.value})}>{courses.map(course=><option key={course}>{course}</option>)}</select></label><button type="button" className="lp-icon-button lp-menu-remove" onClick={()=>removeItem(index)} aria-label="Quitar receta del menú"><Trash2 size={15}/></button></article>)}</div>}
           <div className="lp-recipe-form-actions"><button type="button" className="lp-button lp-secondary" onClick={closeForm}>Cancelar</button><button type="submit" className="lp-button lp-primary" disabled={saving}><Save size={16}/>{saving?"Guardando…":"Guardar menú"}</button></div>
         </form></div>}
