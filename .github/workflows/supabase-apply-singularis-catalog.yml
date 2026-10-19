@@ -1,0 +1,83 @@
+name: Apply Singularis catalog migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Escribe APPLY SINGULARIS para ejecutar solo la migración del catálogo"
+        required: true
+        type: choice
+        options:
+          - NO
+          - APPLY SINGULARIS
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  apply-singularis:
+    if: inputs.confirm_apply == 'APPLY SINGULARIS'
+    name: Apply Singularis kitchen catalog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing repository secret SUPABASE_ACCESS_TOKEN" && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo "Missing repository secret SUPABASE_DB_PASSWORD" && exit 1)
+          supabase link --project-ref ebtdksftgrtfwikpmzqt --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify prerequisites and only intended migration is pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/20261019120000_import_singularis_catalog.sql
+          supabase migration list --linked | tee /tmp/migrations-before.txt
+
+          for version in 20261012000000 20261013090000 20261013190000; do
+            grep -E "$version.*$version" /tmp/migrations-before.txt >/dev/null || {
+              echo "Safety stop: prerequisite migration $version is not registered as applied."
+              exit 1
+            }
+          done
+
+          PENDING="$(awk -F'|' 'NR > 2 { local_version=$1; remote_version=$2; gsub(/[^0-9]/, "", local_version); gsub(/[^0-9]/, "", remote_version); if (length(local_version) == 14 && remote_version == "") print local_version }' /tmp/migrations-before.txt | sort)"
+          EXPECTED="20261019120000"
+          if [ "$PENDING" != "$EXPECTED" ]; then
+            echo "Safety stop: expected only migration $EXPECTED to be pending."
+            echo "Detected pending versions:"
+            printf '%s\n' "$PENDING"
+            exit 1
+          fi
+
+      - name: Apply the catalog migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push --linked
+
+      - name: Verify the catalog migration is applied
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase migration list --linked | tee /tmp/migrations-after.txt
+          grep -E '20261019120000.*20261019120000' /tmp/migrations-after.txt >/dev/null || {
+            echo "Verification failed: Singularis catalog migration is not registered as applied."
+            exit 1
+          }
