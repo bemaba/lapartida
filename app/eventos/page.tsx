@@ -332,12 +332,65 @@ export default function ProductionPage() {
               <label>Fecha del servicio<input type="date" required value={eventForm.event_date} onChange={e => setEventForm({ ...eventForm, event_date: e.target.value })}/></label>
               <label>Hora del servicio<input type="time" value={eventForm.service_time} onChange={e => setEventForm({ ...eventForm, service_time: e.target.value })}/></label>
               <label>Comensales<input type="number" min="1" max="100000" required value={eventForm.guest_count} onChange={e => setEventForm({ ...eventForm, guest_count: e.target.value })}/></label>
-              <label className="lp-production-form-wide">Menú<select required value={eventForm.menu_id} onChange={e => setEventForm({ ...eventForm, menu_id: e.target.value })}><option value="">Seleccionar menú…</option>{visibleMenus.map(menu => <option key={menu.id} value={menu.id}>{menu.title}{menu.status !== "published" ? " · Borrador" : ""}</option>)}</select></label>
+              <label className="lp-production-form-wide">Menú<select required value={eventForm.menu_id} onChange={e => {
+                const menuId = e.target.value;
+                setEventForm(current => ({ ...current, menu_id: menuId }));
+                setSelectedMenuRecipeIds([]);
+                setEventSelectionValidation("");
+              }}><option value="">Seleccionar menú…</option>{visibleMenus.map(menu => <option key={menu.id} value={menu.id}>{menu.title}{menu.status !== "published" ? " · Borrador" : ""}</option>)}</select></label>
+              {selectedMenuForForm?.menu_type === "evento" && <section className="lp-production-form-wide lp-event-menu-catalog">
+                <div className="lp-event-menu-catalog-heading">
+                  <div><h3>Catálogo del menú: {selectedMenuForForm.title}</h3><p>Selecciona aquí los platos concretos para este evento. El menú conserva todas sus opciones para reutilizarlas en otros eventos.</p></div>
+                </div>
+                <div className="lp-event-catalog-blocks">
+                  {eventMenuGroups.map(group => {
+                    const selectedInGroup = selectedMenuRecipeIds.filter(id => group.items.some(item => item.recipe_id === id)).length;
+                    const hasEnoughOptions = group.items.length >= group.selectionCount;
+                    return <section className="lp-event-catalog-block" key={group.name}>
+                      <header><h4>{group.name}</h4><span className={selectedInGroup === group.selectionCount ? "complete" : ""}>{selectedInGroup} / {group.selectionCount} seleccionados</span></header>
+                      <p className="lp-event-catalog-help">{hasEnoughOptions ? `Elige exactamente ${group.selectionCount} plato(s) de las ${group.items.length} opciones del catálogo.` : `Este bloque necesita ${group.selectionCount} platos, pero el menú solo contiene ${group.items.length} opciones. Edita el menú para añadir más.`}</p>
+                      <div className="lp-event-catalog-options">
+                        {group.items.map(item => {
+                          const checked = selectedMenuRecipeIds.includes(item.recipe_id);
+                          const recipe = item.recipes || recipes.find(row => row.id === item.recipe_id);
+                          const recipeTitle = recipe?.title || "Plato";
+                          const recipeCategory = recipe?.category || "";
+                          return <label className={checked ? "lp-event-catalog-option selected" : "lp-event-catalog-option"} key={item.recipe_id}>
+                            <input type="checkbox" checked={checked} disabled={!checked && (selectedInGroup >= group.selectionCount || !hasEnoughOptions)} onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedMenuRecipeIds(current => {
+                                  const currentCount = current.filter(id => group.items.some(groupItem => groupItem.recipe_id === id)).length;
+                                  if (current.includes(item.recipe_id) || currentCount >= group.selectionCount) return current;
+                                  return [...current, item.recipe_id];
+                                });
+                              } else {
+                                setSelectedMenuRecipeIds(current => current.filter(id => id !== item.recipe_id));
+                              }
+                              setEventSelectionValidation("");
+                            }}/>
+                            <span><strong>{recipeTitle}</strong>{recipeCategory && <small>{recipeCategory}</small>}</span>
+                          </label>;
+                        })}
+                      </div>
+                    </section>;
+                  })}
+                </div>
+              </section>}
+              {selectedMenuForForm && selectedMenuForForm.menu_type !== "evento" && <p className="lp-production-form-wide lp-event-menu-note">Este menú no está configurado como catálogo de evento. Se incluirán todas sus recetas.</p>}
               <label className="lp-production-form-wide">Observaciones<textarea rows={3} value={eventForm.notes} onChange={e => setEventForm({ ...eventForm, notes: e.target.value })} placeholder="Accesos, restricciones, horario de montaje…"/></label>
               <div className="lp-production-form-wide lp-recipe-form-actions"><button type="submit" className="lp-button lp-primary" disabled={saving || !isAdmin}><Save size={16}/>{saving ? "Guardando…" : "Crear evento"}</button></div>
             </form>
           </section>}
 
+          {eventSelectionValidation && <div className="lp-validation-backdrop">
+            <section className="lp-validation-modal" role="alertdialog" aria-modal="true" aria-labelledby="lp-event-selection-validation-title">
+              <div className="lp-validation-icon"><X size={20}/></div>
+              <h2 id="lp-event-selection-validation-title">Revisa la selección de platos</h2>
+              <p>El evento debe incluir el número de platos definido en el catálogo:</p>
+              <ul>{eventSelectionValidation.split("\n\n").map((message,index) => <li key={index}>{message}</li>)}</ul>
+              <button type="button" className="lp-button lp-primary" onClick={() => setEventSelectionValidation("")}>Volver al evento</button>
+            </section>
+          </div>}
           <div className="lp-production-tabs" role="tablist" aria-label="Vista de producción">
             <button type="button" role="tab" aria-selected={activeView === "events"} className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}><CalendarDays size={16}/> Por evento <span>{events.length}</span></button>
             <button type="button" role="tab" aria-selected={activeView === "daily"} className={activeView === "daily" ? "active" : ""} onClick={() => setActiveView("daily")}><ClipboardList size={16}/> Por día</button>
@@ -354,7 +407,11 @@ export default function ProductionPage() {
             <section className="lp-card lp-production-event-detail">
               {!selectedEvent ? <div className="lp-week-empty"><ClipboardList size={28}/><strong>Selecciona un evento</strong><span>Verás el plan de producción, las fechas y el progreso de sus elaboraciones.</span></div> : <>
                 <div className="lp-card-title"><div><div className="lp-kicker">FICHA DE EVENTO</div><h2>{selectedEvent.title}</h2><p>{dateLabel(selectedEvent.event_date)}{selectedEvent.service_time ? ` · Servicio ${selectedEvent.service_time.slice(0, 5)}` : ""} · {selectedEvent.guest_count} comensales</p></div></div>
-                <div className="lp-production-event-summary"><span><strong>Menú:</strong> {selectedEvent.menu_title_snapshot || "No disponible"}</span>{selectedEvent.notes && <p>{selectedEvent.notes}</p>}</div>
+                <div className="lp-production-event-summary">
+                   <span><strong>Menú:</strong> {selectedEvent.menu_title_snapshot || "No disponible"}</span>
+                   {selectedMenu?.menu_type === "evento" && selectedEvent.selected_recipe_ids?.length ? <div className="lp-production-chosen-menu"><strong>Platos elegidos para este evento</strong><ul>{selectedMenu.menu_items.filter(item => selectedEvent.selected_recipe_ids?.includes(item.recipe_id)).map(item => <li key={item.recipe_id}>{item.section_name}: {item.recipes?.title || recipes.find(recipe => recipe.id === item.recipe_id)?.title || "Plato"}</li>)}</ul></div> : null}
+                   {selectedEvent.notes && <p>{selectedEvent.notes}</p>}
+                 </div>
                 <div className="lp-production-event-actions">
                   {isAdmin && <><label>Estado del evento<select value={selectedEvent.status} onChange={e => void updateEventStatus(selectedEvent, e.target.value as ProductionEvent["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="lp-button lp-secondary" disabled={saving} onClick={() => void generatePlan(selectedEvent)}><RefreshCw size={15}/>{selectedTasks.length ? "Regenerar plan" : "Generar plan de producción"}</button><button type="button" className="lp-button lp-danger" onClick={() => void deleteEvent(selectedEvent)}>Eliminar evento</button></>}
                   <button type="button" className="lp-button lp-secondary" onClick={() => window.print()}><Printer size={15}/> Imprimir plan</button>
