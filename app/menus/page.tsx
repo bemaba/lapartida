@@ -190,7 +190,7 @@ export default function MenusPage() {
     }] }));
   };
   const addSelectedEventRecipes = () => {
-    const selectedIds = [...pendingRecipeIds];
+    const selectedIds = pendingRecipeIds.slice(0, eventRecipeSlotsAvailable);
     setForm(current => {
       const existingIds = new Set(current.items.map(item => item.recipe_id));
       const additions = selectedIds
