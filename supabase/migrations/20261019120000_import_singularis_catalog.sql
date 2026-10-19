@@ -135,7 +135,7 @@ with menu_data(title, description, theme_label, sort_order) as (
 ('Experiencia Gastronómica III', 'Menú Singularis III. Selección: 5 fríos, 5 calientes y 2 postres.', 'Experiencia Gastronómica III', 4),
 ('Experiencia Gastronómica IV', 'Menú Singularis IV. Selección: 5 fríos, 6 calientes y 2 postres.', 'Experiencia Gastronómica IV', 5),
 ('Estaciones temáticas Singularis', 'Referencias de cocina para estaciones en eventos. Fichas técnicas pendientes de completar.', 'Estaciones', 6)
-   )
+)
 insert into public.menus (title, description, theme_label, status, created_by)
 select md.title, md.description, md.theme_label, 'draft',
        (select p.user_id from public.profiles p where p.active = true and p.role = 'admin' order by p.user_id limit 1)
