@@ -649,14 +649,15 @@
 
 /* Menu editor modal: keep the list visible behind a focused, scrollable dialog. */
 .lp-menu-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:#eef2ed;overflow:hidden}
-.lp-menu-modal{width:min(1100px,100%);height:calc(100dvh - 48px);max-height:calc(100dvh - 48px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;box-shadow:0 24px 90px rgba(0,0,0,.28);margin:0;position:relative;isolation:isolate;box-sizing:border-box;background:#fff!important;color:var(--ink);border:1px solid #dfe5dd}
-.lp-menu-modal .lp-card-title{position:sticky;top:-1px;z-index:10;padding:12px 0;background:#fff!important;box-shadow:0 2px 0 #fff,0 3px 0 rgba(31,53,41,.08)}
+.lp-menu-modal{display:flex;flex-direction:column;width:min(1100px,100%);height:calc(100dvh - 48px);max-height:calc(100dvh - 48px);overflow:hidden;overscroll-behavior:contain;box-shadow:0 24px 90px rgba(0,0,0,.28);margin:0;position:relative;isolation:isolate;box-sizing:border-box;background:#fff!important;color:var(--ink);border:1px solid #dfe5dd}
+.lp-menu-modal .lp-card-title{position:relative;top:auto;z-index:2;flex:0 0 auto;padding:12px 0;margin:0 0 12px;background:#fff!important;border-bottom:1px solid var(--line);box-shadow:none}
+.lp-menu-modal-body{display:block;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:0 2px 18px;background:#fff!important;isolation:isolate}
 .lp-menu-modal .lp-menu-picker{max-height:190px;overflow:auto}
-.lp-menu-modal .lp-recipe-form-actions{position:sticky;bottom:-1px;z-index:10;padding:12px 0;background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -2px 0 #fff,0 -3px 0 rgba(31,53,41,.04)}
+.lp-menu-modal .lp-recipe-form-actions{position:relative;inset:auto;z-index:2;flex:0 0 auto;margin:0;padding:12px 0 0;background:#fff!important;border-top:1px solid var(--line);box-shadow:none}
 .lp-menu-modal .lp-menu-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
 .lp-menu-modal .lp-menu-fields .wide{grid-column:1/-1}
 .lp-menu-modal .lp-menu-item{grid-template-columns:36px minmax(160px,1fr) minmax(120px,160px) minmax(150px,180px) minmax(110px,135px) 34px}
-@media(max-width:760px){.lp-menu-modal-backdrop{padding:0;align-items:stretch}.lp-menu-modal{width:100%;max-height:100dvh;border-radius:0;padding:16px}.lp-menu-modal .lp-menu-fields{grid-template-columns:1fr}.lp-menu-modal .lp-menu-fields .wide{grid-column:auto}.lp-menu-modal .lp-menu-item{grid-template-columns:30px minmax(0,1fr) 34px}.lp-menu-modal .lp-menu-item>label{grid-column:2!important;grid-row:auto!important}.lp-menu-modal .lp-menu-remove{grid-column:3;grid-row:1}}
+@media(max-width:760px){.lp-menu-modal-backdrop{padding:0;align-items:stretch}.lp-menu-modal{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding:16px}.lp-menu-modal .lp-menu-fields{grid-template-columns:1fr}.lp-menu-modal .lp-menu-fields .wide{grid-column:auto}.lp-menu-modal .lp-menu-item{grid-template-columns:30px minmax(0,1fr) 34px}.lp-menu-modal .lp-menu-item>label{grid-column:2!important;grid-row:auto!important}.lp-menu-modal .lp-menu-remove{grid-column:3;grid-row:1}}
 
 
 /* Search and filters for menu library */
