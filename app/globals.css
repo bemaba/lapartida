@@ -645,3 +645,15 @@
 .lp-menu-print-bundle li h3{margin:0;font-size:12pt}
 @media(max-width:1000px){.lp-menu-item{grid-template-columns:30px minmax(0,1fr) minmax(110px,150px) minmax(100px,125px) 34px}.lp-menu-item>label:nth-of-type(3){grid-column:2}.lp-menu-item>label:nth-of-type(2){grid-column:3/5}.lp-menu-remove{grid-column:5;grid-row:1}}
 @media(max-width:760px){.lp-menu-item{grid-template-columns:30px minmax(0,1fr) 34px}.lp-menu-item>label{grid-column:2!important;grid-row:auto!important}.lp-menu-remove{grid-column:3;grid-row:1}.lp-menu-section-preview h3{align-items:flex-start;flex-direction:column;gap:4px}}
+
+
+/* Menu editor modal: keep the list visible behind a focused, scrollable dialog. */
+.lp-menu-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(18,29,23,.58);backdrop-filter:blur(3px)}
+.lp-menu-modal{width:min(1100px,100%);max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 90px rgba(0,0,0,.28);margin:0}
+.lp-menu-modal .lp-card-title{position:sticky;top:-1px;z-index:3;padding:12px 0;background:var(--card,#fff)}
+.lp-menu-modal .lp-menu-picker{max-height:190px;overflow:auto}
+.lp-menu-modal .lp-recipe-form-actions{position:sticky;bottom:-1px;z-index:3;padding:12px 0;background:var(--card,#fff);border-top:1px solid var(--line)}
+.lp-menu-modal .lp-menu-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lp-menu-modal .lp-menu-fields .wide{grid-column:1/-1}
+.lp-menu-modal .lp-menu-item{grid-template-columns:36px minmax(160px,1fr) minmax(120px,160px) minmax(150px,180px) minmax(110px,135px) 34px}
+@media(max-width:760px){.lp-menu-modal-backdrop{padding:0;align-items:stretch}.lp-menu-modal{width:100%;max-height:100dvh;border-radius:0;padding:16px}.lp-menu-modal .lp-menu-fields{grid-template-columns:1fr}.lp-menu-modal .lp-menu-fields .wide{grid-column:auto}.lp-menu-modal .lp-menu-item{grid-template-columns:30px minmax(0,1fr) 34px}.lp-menu-modal .lp-menu-item>label{grid-column:2!important;grid-row:auto!important}.lp-menu-modal .lp-menu-remove{grid-column:3;grid-row:1}}
